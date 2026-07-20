@@ -107,24 +107,41 @@ class EpisodeListViewModel(
             if (nowPlayed) {
                 mutablePendingUndo.value =
                     UndoablePlayedChange(
-                        message = "視聴済みにしました",
+                        // 何が起きるのかを明示する。黙ってファイルを消さない。
+                        message =
+                            if (episode.downloaded) {
+                                "視聴済みにしました。ダウンロードを削除します"
+                            } else {
+                                "視聴済みにしました"
+                            },
                         snapshots = listOf(PlayedSnapshot(episode.id, episode.played)),
                         affectedEpisodeIds = listOf(episode.id),
                     )
+            } else {
+                // 未聴に戻す操作にも結果を返す。視聴済みのときだけ無言、では一貫しない。
+                mutableMessage.value = "未聴に戻しました"
             }
         }
     }
 
     fun markAllPlayed(played: Boolean) {
         viewModelScope.launch {
+            val downloadedCount = episodeRepository.findEpisodes(feedId).count { it.downloaded }
             val snapshots = episodeRepository.setPlayedForFeed(feedId, played)
             if (played) {
                 mutablePendingUndo.value =
                     UndoablePlayedChange(
-                        message = "${snapshots.size}件を視聴済みにしました",
+                        message =
+                            if (downloadedCount > 0) {
+                                "${snapshots.size}件を視聴済みに。DL済み${downloadedCount}件を削除します"
+                            } else {
+                                "${snapshots.size}件を視聴済みにしました"
+                            },
                         snapshots = snapshots,
                         affectedEpisodeIds = snapshots.map { it.episodeId },
                     )
+            } else {
+                mutableMessage.value = "${snapshots.size}件を未聴に戻しました"
             }
         }
     }

@@ -57,6 +57,7 @@ fun EpisodeListScreen(
     val confirmation by viewModel.downloadConfirmation.collectAsStateWithLifecycle()
     val message by viewModel.message.collectAsStateWithLifecycle()
     val snackbarHostState = remember { SnackbarHostState() }
+    var showUnsubscribeConfirm by remember { mutableStateOf(false) }
 
     UndoEffect(pendingUndo, snackbarHostState, viewModel::undoPending, viewModel::commitPendingUndo)
     MessageEffect(message, snackbarHostState, viewModel::consumeMessage)
@@ -75,7 +76,7 @@ fun EpisodeListScreen(
                     FeedMenu(
                         onMarkAllPlayed = { viewModel.markAllPlayed(true) },
                         onMarkAllUnplayed = { viewModel.markAllPlayed(false) },
-                        onUnsubscribe = { viewModel.unsubscribe(onBack) },
+                        onUnsubscribe = { showUnsubscribeConfirm = true },
                     )
                 },
             )
@@ -97,7 +98,40 @@ fun EpisodeListScreen(
         }
     }
 
-    confirmation?.let { pending ->
+    Dialogs(
+        showUnsubscribeConfirm = showUnsubscribeConfirm,
+        feedTitle = feed?.title.orEmpty(),
+        downloadedCount = episodes.count { it.downloaded },
+        onUnsubscribe = {
+            showUnsubscribeConfirm = false
+            viewModel.unsubscribe(onBack)
+        },
+        onDismissUnsubscribe = { showUnsubscribeConfirm = false },
+        downloadConfirmation = confirmation,
+        viewModel = viewModel,
+    )
+}
+
+@Composable
+private fun Dialogs(
+    showUnsubscribeConfirm: Boolean,
+    feedTitle: String,
+    downloadedCount: Int,
+    onUnsubscribe: () -> Unit,
+    onDismissUnsubscribe: () -> Unit,
+    downloadConfirmation: DownloadConfirmation?,
+    viewModel: EpisodeListViewModel,
+) {
+    if (showUnsubscribeConfirm) {
+        UnsubscribeConfirmDialog(
+            feedTitle = feedTitle,
+            downloadedCount = downloadedCount,
+            onConfirm = onUnsubscribe,
+            onDismiss = onDismissUnsubscribe,
+        )
+    }
+
+    downloadConfirmation?.let { pending ->
         MeteredDownloadDialog(
             title = pending.title,
             sizeBytes = pending.sizeBytes,
@@ -194,6 +228,35 @@ private fun FeedMenu(
             )
         }
     }
+}
+
+/**
+ * 購読削除の確認。
+ *
+ * 購読とエピソードの記録、ダウンロード済みファイルがまとめて消え、取り消しもできない。 このアプリで唯一の「まとめて壊せる」操作なので、ここだけは確認を挟む。
+ */
+@Composable
+private fun UnsubscribeConfirmDialog(
+    feedTitle: String,
+    downloadedCount: Int,
+    onConfirm: () -> Unit,
+    onDismiss: () -> Unit,
+) {
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text("購読を削除しますか?") },
+        text = {
+            val downloads =
+                if (downloadedCount > 0) {
+                    "ダウンロード済みの${downloadedCount}件も削除されます。"
+                } else {
+                    ""
+                }
+            Text("「$feedTitle」の購読と視聴状態をすべて削除します。$downloads この操作は取り消せません。")
+        },
+        confirmButton = { TextButton(onClick = onConfirm) { Text("削除する") } },
+        dismissButton = { TextButton(onClick = onDismiss) { Text("やめる") } },
+    )
 }
 
 @Composable

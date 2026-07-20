@@ -78,9 +78,11 @@ private fun LeadingAction(
 ) {
     when {
         downloadState is DownloadState.InProgress ->
+            // 進み具合は行の副題にも百分率で出す。小さな円だけでは残量が読み取れないため。
             CircularProgressIndicator(
                 progress = { downloadState.fraction ?: 0f },
-                modifier = Modifier.size(24.dp).padding(start = 12.dp),
+                modifier = Modifier.padding(horizontal = 12.dp).size(32.dp),
+                strokeWidth = 3.dp,
             )
         episode.downloaded ->
             IconButton(onClick = onPlay) {
@@ -129,10 +131,21 @@ private fun episodeSubtitle(episode: Episode, downloadState: DownloadState?): St
     }
     episode.durationMs?.let { parts += formatDuration(it) }
     when {
-        downloadState is DownloadState.Failed -> parts += "DL失敗"
+        downloadState is DownloadState.InProgress -> parts += downloadState.describe()
+        downloadState is DownloadState.Failed -> parts += "DL失敗 ・ タップでやり直す"
         episode.downloaded -> parts += "DL済み"
     }
     return parts.joinToString(" ・ ")
+}
+
+/** 全体サイズが分かるときは百分率、分からないときは受信済みのMBを出す。 */
+private fun DownloadState.InProgress.describe(): String {
+    val percent = fraction?.let { "%.0f%%".format(it * 100) }
+    return if (percent != null) {
+        "ダウンロード中 $percent"
+    } else {
+        "ダウンロード中 %.0fMB".format(bytesRead / 1024.0 / 1024.0)
+    }
 }
 
 private fun formatDuration(durationMs: Long): String {
