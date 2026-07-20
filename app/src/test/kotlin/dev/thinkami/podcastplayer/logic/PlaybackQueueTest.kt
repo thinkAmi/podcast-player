@@ -51,4 +51,33 @@ class PlaybackQueueTest {
     fun `空のリストなら何も再生しない`() {
         assertNull(PlaybackQueue.nextAutoPlayable(emptyList(), currentEpisodeId = 1L))
     }
+
+    @Test
+    fun `再生順は選んだものから始まりDL済みだけが続く`() {
+        val list =
+            listOf(
+                episode(id = 1L, downloaded = true),
+                episode(id = 2L, downloaded = true),
+                episode(id = 3L, downloaded = false),
+                episode(id = 4L, downloaded = true),
+            )
+
+        val order = PlaybackQueue.playbackOrderFrom(list, startEpisodeId = 2L)
+
+        assertEquals(listOf(2L, 4L), order.map { it.id })
+    }
+
+    @Test
+    fun `未DLのエピソードからは再生を始められない`() {
+        val list = listOf(episode(id = 1L, downloaded = false), episode(id = 2L, downloaded = true))
+
+        assertEquals(emptyList<Long>(), PlaybackQueue.playbackOrderFrom(list, startEpisodeId = 1L))
+    }
+
+    @Test
+    fun `リストにないエピソードからは再生を始められない`() {
+        val list = listOf(episode(id = 1L, downloaded = true))
+
+        assertEquals(emptyList<Long>(), PlaybackQueue.playbackOrderFrom(list, startEpisodeId = 99L))
+    }
 }

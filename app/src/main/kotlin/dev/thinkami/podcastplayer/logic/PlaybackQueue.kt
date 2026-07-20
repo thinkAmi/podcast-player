@@ -19,4 +19,16 @@ object PlaybackQueue {
         if (currentIndex < 0) return null
         return episodes.asSequence().drop(currentIndex + 1).firstOrNull { it.downloaded }
     }
+
+    /**
+     * 選んだエピソードから始まる再生順を返す。
+     *
+     * 先頭は必ず選ばれたエピソード、以降はリスト順のDL済みだけ。これをそのまま再生キューに 渡すことで、「未DLはスキップし、自動でDLしない」という約束をプレイヤー任せにできる。
+     * 選んだエピソードがDL済みでなければ何も再生しない(鳴らすファイルがない)。
+     */
+    fun playbackOrderFrom(episodes: List<Episode>, startEpisodeId: Long): List<Episode> {
+        val startIndex = episodes.indexOfFirst { it.id == startEpisodeId }
+        if (startIndex < 0 || !episodes[startIndex].downloaded) return emptyList()
+        return episodes.drop(startIndex).filter { it.downloaded }
+    }
 }

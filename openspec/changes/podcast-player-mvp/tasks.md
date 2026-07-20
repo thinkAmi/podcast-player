@@ -30,23 +30,23 @@
 
 ## 4. ダウンロード管理(episode-download)
 
-- [ ] 4.1 HttpURLConnectionによるファイルDL(getExternalFilesDirへ保存、進捗通知、失敗時は未DL状態へ)
-- [ ] 4.2 従量制回線判定(ConnectivityManager)と確認ダイアログ分岐
-- [ ] 4.3 DL状態のDB反映(downloaded・local_path)と手動再試行
+- [x] 4.1 HttpURLConnectionによるファイルDL(getExternalFilesDirへ保存、進捗通知、失敗時は未DL状態へ)
+- [x] 4.2 従量制回線判定(ConnectivityManager)と確認ダイアログ分岐
+- [x] 4.3 DL状態のDB反映(downloaded・local_path)と手動再試行
 
 ## 5. 再生(playback)
 
-- [ ] 5.1 MediaSessionService実装(ExoPlayer結線・フォアグラウンドサービス・通知・オーディオフォーカス)
-- [ ] 5.2 ±10秒スキップ・番組ごと再生速度(読み書き)・再生位置の定期保存と復元
-- [ ] 5.3 再生完了イベント→視聴済み化→自動継続(現在リスト順の次のDL済みへ。未DLスキップ・継続先なしで停止)
+- [x] 5.1 MediaSessionService実装(ExoPlayer結線・フォアグラウンドサービス・通知・オーディオフォーカス)
+- [x] 5.2 ±10秒スキップ・番組ごと再生速度(読み書き)・再生位置の定期保存と復元
+- [x] 5.3 再生完了イベント→視聴済み化→自動継続(現在リスト順の次のDL済みへ。未DLスキップ・継続先なしで停止)
 - [ ] 5.4 実機での再生スモークテスト(画面消灯継続・ロック画面操作・Bluetooth・着信一時停止)
 
 ## 6. 視聴状態と自動削除(listening-status)
 
-- [ ] 6.1 自動視聴済み判定(残り10秒到達)→即時削除の結線
+- [x] 6.1 自動視聴済み判定(残り10秒到達)→即時削除の結線
 - [ ] 6.2 手動トグル→Undoスナックバー5秒→削除実行のフロー(1件・一括共通)
 - [ ] 6.3 番組メニューの一括「すべて視聴済み/未聴」実装
-- [ ] 6.4 削除実行(ファイル削除+downloaded解除、favorite除外、DB記録・URL保持)の計装テスト
+- [x] 6.4 削除実行(ファイル削除+downloaded解除、favorite除外、DB記録・URL保持)の計装テスト
 
 ## 7. UI(4画面+ミニプレイヤー)
 
