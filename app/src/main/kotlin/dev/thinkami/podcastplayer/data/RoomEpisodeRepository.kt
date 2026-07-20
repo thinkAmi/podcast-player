@@ -7,8 +7,10 @@ import dev.thinkami.podcastplayer.data.storage.MediaFileStorage
 import dev.thinkami.podcastplayer.logic.ListeningRules
 import dev.thinkami.podcastplayer.logic.model.Episode
 import dev.thinkami.podcastplayer.logic.model.PlayedSnapshot
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.withContext
 
 class RoomEpisodeRepository(
     private val episodeDao: EpisodeDao,
@@ -57,7 +59,7 @@ class RoomEpisodeRepository(
             val episode = episodeDao.findById(episodeId)?.toModel() ?: return@forEach
             if (!ListeningRules.shouldDeleteDownload(episode)) return@forEach
 
-            storage.delete(episode.localPath)
+            withContext(Dispatchers.IO) { storage.delete(episode.localPath) }
             // 記録と enclosureUrl は残す。再DLの可能性を閉ざさないため。
             episodeDao.setDownloadState(episodeId, downloaded = false, localPath = null)
         }

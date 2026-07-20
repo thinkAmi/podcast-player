@@ -11,6 +11,7 @@ import dev.thinkami.podcastplayer.appContainer
 import dev.thinkami.podcastplayer.data.EpisodeRepository
 import dev.thinkami.podcastplayer.logic.ListeningRules
 import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.delay
@@ -27,7 +28,12 @@ import kotlinx.coroutines.launch
 class PlaybackService : MediaSessionService() {
 
     private var mediaSession: MediaSession? = null
-    private val serviceScope = CoroutineScope(SupervisorJob())
+
+    /**
+     * メインスレッドに固定する。ExoPlayer は生成したスレッド(=メイン)からしか触れず、 別スレッドから読むと `Player is accessed on the wrong
+     * thread` で落ちる。 ここから呼ぶリポジトリ側は、必要な入出力を自分で IO ディスパッチャへ逃がす。
+     */
+    private val serviceScope = CoroutineScope(SupervisorJob() + Dispatchers.Main)
 
     /** 視聴済みにしたが、まだ再生中でファイルを消せていないエピソード。 */
     private val pendingDeletion = mutableSetOf<Long>()

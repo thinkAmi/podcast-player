@@ -25,11 +25,13 @@ class ArtworkStore(private val fetcher: HttpFetcher, private val storage: MediaF
      */
     suspend fun ensureCached(feedId: Long, artworkUrl: String?): String? {
         if (artworkUrl.isNullOrBlank()) return null
-        val file = storage.artworkFile(feedId)
-        return if (file.exists() && file.length() > 0L) {
-            file.absolutePath
-        } else {
-            download(artworkUrl, file)
+        return withContext(Dispatchers.IO) {
+            val file = storage.artworkFile(feedId)
+            if (file.exists() && file.length() > 0L) {
+                file.absolutePath
+            } else {
+                download(artworkUrl, file)
+            }
         }
     }
 
