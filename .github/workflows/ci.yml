@@ -1,0 +1,44 @@
+name: CI
+
+# 最小CI: ビルド + JVMテスト + 静的解析 + カバレッジ検証。
+# 計装テスト(Room DAO・RSSパーサー・削除処理)はエミュレータが必要なため
+# CIには載せず、ローカルの実機で実行する。
+
+on:
+  push:
+    branches: ['**']
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      # actions はサプライチェーン対策として commit SHA で固定する。
+      - name: Checkout
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+
+      - name: Set up JDK
+        uses: actions/setup-java@03ad4de0992f5dab5e18fcb136590ce7c4a0ac95 # v5.6.0
+        with:
+          distribution: temurin
+          java-version: '21'
+
+      - name: Set up Gradle
+        uses: gradle/actions/setup-gradle@3f131e8634966bd73d06cc69884922b02e6faf92 # v6.2.0
+
+      # build は assemble + check を含み、check には
+      # ktfmtCheck / detekt / Android Lint / JVMユニットテスト / koverVerify が入る。
+      - name: Build and check
+        run: ./gradlew build --no-daemon
+
+      - name: Upload reports on failure
+        if: failure()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: reports
+          path: app/build/reports/
+          retention-days: 7

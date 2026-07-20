@@ -59,6 +59,10 @@ player/ Media3の結線。再生イベントをdata層へ書き戻す
 
 - 「判断(logic)と実行(data)の分離」はモックレス・RobolectricレスのテストStrategyの前提条件。崩さない。
 - DIフレームワーク・UseCaseクラス層・マルチモジュールは規模に対して儀式なので作らない。
+- **モデルの置き場所**: logic/ が `androidx.*` を import できない(detektが機械的に拒否する)以上、Roomのエンティティを logic/ の関数がそのまま扱うことはできない。したがって:
+  - `logic/model/` — アノテーションのない純粋なドメインモデル(Feed / Episode)。判断ロジックの入出力はこれ
+  - `data/db/` — Roomのエンティティ(`@Entity`)とDAO。エンティティ↔ドメインモデルの変換関数を同居させる
+  - 重複はモデル2つ分の小さなコストで、logic層の純粋性(=テスト戦略の前提)を守るための必要経費と判断する
 
 ### D6: データモデルの先行投資
 
@@ -86,12 +90,16 @@ player/ Media3の結線。再生イベントをdata層へ書き戻す
 
 - ktfmt(設定不可・決定論的。KotlinConf 2026でKotlin org移管が発表された事実上の次期公式)。ktlintは不採用(役割吸収・コミュニティ管理化)。
 - Android Lint: warningsAsErrors + abortOnError。コンパイラも allWarningsAsErrors。
-- detekt 1.23.x(第三者依存だがAI悪癖の機械的ブロックとして価値が上回ると判断):
+- detekt 2.0.0-alpha 系(第三者依存だがAI悪癖の機械的ブロックとして価値が上回ると判断):
+  - **当初 1.23.x を選定したが、実装着手時の調査で撤回した。** detekt 1.23.8(最終安定版)の公式サポート範囲は Gradle 8.12.1 / Kotlin 2.0.21 / AGP 8.8.1 までで、Kotlin 2.3系のメタデータを処理できず(issue #8865)、AGP 9 で削除されたクラスを参照する(issue #8532)。かつ 1.23.8 はメンテナンス終了が明記されており、「メンテが続いているものが望ましい」という選定基準にも反する。1.23.8 を使うとツールチェーン全体を約1年古い状態に恒久的に固定することになるため、build時のみ・APK非同梱・バージョン固定という条件下で alpha を許容する方が総合的に有利と判断した
+  - detekt 2.0 はコンパイラプラグイン化により高速かつ type resolution が標準。座標が `dev.detekt` に変更されている
+  - **フォールバック方針**: 使用予定の Kotlin 版(KSP の制約で 2.3.10 が上限)と detekt 2.0 alpha が噛み合わない場合は detekt 導入を見送り、Android Lint + allWarningsAsErrors + ktfmt で当面運用する。detekt は 2.0 安定後にプラグイン1行 + yml で後付けでき、rework は発生しない
   - 例外系: SwallowedException / TooGenericExceptionCaught / EmptyCatchBlock / ReturnFromFinally
   - スタブ系: ForbiddenComment(TODO/FIXME/HACK禁止 = 未完成コードのコミット禁止)
   - 肥大系: LongMethod / CyclomaticComplexMethod / NestedBlockDepth / LongParameterList(デフォルト閾値始まり、実測後調整)
-  - 層違反: ForbiddenImport(D5の依存ルールをYAML化)
-  - baseline不使用(greenfield)・detekt-formatting不使用・type resolution当面見送り
+  - 層違反: ForbiddenImport(D5の依存ルールをYAML化)。detektは1ルール1定義のためスコープを1つしか持てず、最重要の「logic層の純粋性」(`includes: **/logic/**`)に適用する。`ui→Room直接` の禁止はCLAUDE.mdの規約とレビューで担保する
+  - 実効性は導入時に検証済み: logic層にAndroid APIのimportを混入させるとビルドが失敗することを確認した
+  - baseline不使用(greenfield)・detekt-formatting不使用
 - CLAUDE.mdに同じルールを事前指示として記載(事後検出と事前指示の両輪)。
 
 ### D11: リポジトリ・CI・配布
@@ -106,6 +114,8 @@ player/ Media3の結線。再生イベントをdata層へ書き戻す
 - [世のRSSフィードは仕様違反が多く、自作パーサーが実フィードで躓く] → 購読予定の実フィードをテストフィクスチャ化して開発初期に検証。パースは「壊れた項目はスキップして続行」を原則とする
 - [視聴済み自動判定(残り10秒)の誤発動でファイルが消え、古いエピソードは再DL不可] → 閾値10秒は「確実に最後まで聴く」実態に基づく。enclosure URLはDBに保持し再DLの可能性を残す。手動経路にはUndo
 - [detekt/ktfmtのビルド時依存はサードパーティゼロ方針の例外] → APK非同梱・バージョン固定・dependency verification対象とすることで受容
+- [detekt 2.0 が alpha であり、安定版までに設定形式やルール名が変わりうる] → build時のみの依存でAPKに影響しない。バージョンを固定し、2.0安定版リリース時に一度だけ移行する。噛み合わない場合はdetektなしで開始するフォールバックを用意済み
+- [KSP が Kotlin 2.4 系に未対応(最新 KSP 2.3.10)のため Kotlin の上限が 2.3.10 に制約される] → Room が KSP を必要とするため受容。KSP 追従後に Kotlin を上げる
 - [ktfmtのKotlin org移管は進行中で座標や運用が変わりうる] → 変わった時点で追従。決定論的フォーマットという性質は移管後も不変
 - [計装テストがCIにないため、DAO/パーサーの回帰はローカル実行忘れで漏れうる] → apply時の実装ワークフローに「計装テスト実行」を明示的タスクとして含める
 - [Media3のMediaSessionService結線は学習量が多い] → 定型パターンが確立しており公式ドキュメント・サンプルが豊富。AI実装との相性は良い

@@ -3,14 +3,14 @@
 ## 1. プロジェクト基盤
 
 - [ ] 1.1 開発環境の確認(Android Studioインストール済み・Pixel 7 Proの開発者向けオプション+USBデバッグ有効化・adbで実機認識)
-- [ ] 1.2 Androidプロジェクト新規作成(Kotlin + Compose、applicationId `dev.thinkami.podcastplayer`、minSdk=targetSdk=36、単一モジュール)
+- [x] 1.2 Androidプロジェクト新規作成(Kotlin + Compose、applicationId `dev.thinkami.podcastplayer`、minSdk=targetSdk=36、単一モジュール)
 - [ ] 1.3 git初期化・.gitignore整備・MITライセンス・GitHub公開リポジトリ `podcast-player` 作成・初回push
-- [ ] 1.4 リポジトリ制限(settings.gradle.ktsで google()/mavenCentral() のみ)+ Gradle dependency verification 有効化
-- [ ] 1.5 依存追加(Compose / Media3 / Room+KSP / kotlinx-coroutines のみ。バージョン完全固定)
-- [ ] 1.6 品質ツール導入: ktfmt / Android Lint(warningsAsErrors)/ allWarningsAsErrors / detekt 1.23.x(design D10のルール群をdetekt.ymlに設定)
-- [ ] 1.7 Kover導入(logic/パッケージのみ行カバレッジ90%ゲート)
-- [ ] 1.8 最小CI(GitHub Actions: build + JVMテスト + detekt/lint + koverVerify。actionsはSHA固定)
-- [ ] 1.9 CLAUDE.md作成(4層構造・detektルール・モックレス方針・「機能を増やさない/通信はユーザー起点」を事前指示として記載)
+- [x] 1.4 リポジトリ制限(settings.gradle.ktsで google()/mavenCentral() のみ)+ Gradle dependency verification 有効化
+- [x] 1.5 依存追加(Compose / Media3 / Room+KSP / kotlinx-coroutines のみ。バージョン完全固定)
+- [x] 1.6 品質ツール導入: ktfmt / Android Lint(warningsAsErrors)/ allWarningsAsErrors / detekt 1.23.x(design D10のルール群をdetekt.ymlに設定)
+- [x] 1.7 Kover導入(logic/パッケージのみ行カバレッジ90%ゲート)
+- [x] 1.8 最小CI(GitHub Actions: build + JVMテスト + detekt/lint + koverVerify。actionsはSHA固定)
+- [x] 1.9 CLAUDE.md作成(4層構造・detektルール・モックレス方針・「機能を増やさない/通信はユーザー起点」を事前指示として記載)
 
 ## 2. データ層とロジック層の骨格
 
