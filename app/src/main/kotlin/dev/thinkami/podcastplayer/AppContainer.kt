@@ -12,6 +12,7 @@ import dev.thinkami.podcastplayer.data.net.HttpFetcher
 import dev.thinkami.podcastplayer.data.net.NetworkStateProvider
 import dev.thinkami.podcastplayer.data.rss.RssXmlReader
 import dev.thinkami.podcastplayer.data.storage.MediaFileStorage
+import dev.thinkami.podcastplayer.player.PlaybackConnection
 
 /**
  * 手動DIコンテナ。アプリの生存期間中ひとつだけ存在する。
@@ -29,6 +30,8 @@ class AppContainer(private val applicationContext: Context) {
     val artworkStore: ArtworkStore by lazy { ArtworkStore(httpFetcher, fileStorage) }
 
     val networkState: NetworkStateProvider by lazy { NetworkStateProvider(applicationContext) }
+
+    val playback: PlaybackConnection by lazy { PlaybackConnection(applicationContext) }
 
     val episodeRepository: EpisodeRepository by lazy {
         RoomEpisodeRepository(database.episodeDao(), fileStorage)
