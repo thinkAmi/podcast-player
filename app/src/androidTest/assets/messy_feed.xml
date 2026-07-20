@@ -1,0 +1,51 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  実在のポッドキャストRSSにありがちな「汚さ」を再現したフィクスチャ。
+  ・CDATA / content:encoded によるショーノート
+  ・enclosure を持たない壊れたitem(取り込まずスキップする)
+  ・guid を持たないitem(enclosure URL を一意キーに代用する)
+  ・pubDate の表記ゆれ、itunes:duration の表記ゆれ
+  実際に購読する番組のフィードを入手したら、それも同じ形でフィクスチャに追加すること。
+-->
+<rss version="2.0"
+     xmlns:itunes="http://www.itunes.com/dtds/podcast-1.0.dtd"
+     xmlns:content="http://purl.org/rss/1.0/modules/content/">
+  <channel>
+    <title>テスト番組</title>
+    <description>番組の説明</description>
+    <itunes:image href="https://example.test/artwork.jpg"/>
+
+    <item>
+      <title>第3回 通常のエピソード</title>
+      <guid isPermaLink="false">ep-003</guid>
+      <description><![CDATA[<p>CDATAに入ったショーノート</p>]]></description>
+      <pubDate>Sun, 19 Jul 2026 09:00:00 +0900</pubDate>
+      <enclosure url="https://example.test/ep003.mp3" length="52428800" type="audio/mpeg"/>
+      <itunes:duration>01:02:05</itunes:duration>
+    </item>
+
+    <item>
+      <title>第2回 guidがなく長さが分秒表記</title>
+      <content:encoded><![CDATA[<p>content:encoded のショーノート</p>]]></content:encoded>
+      <pubDate>18 Jul 2026 09:00:00 +0900</pubDate>
+      <enclosure url="https://example.test/ep002.mp3" length="41943040" type="audio/mpeg"/>
+      <itunes:duration>52:10</itunes:duration>
+    </item>
+
+    <item>
+      <title>音声のない壊れたitem</title>
+      <guid>ep-broken</guid>
+      <pubDate>Fri, 17 Jul 2026 09:00:00 +0900</pubDate>
+      <itunes:duration>10:00</itunes:duration>
+    </item>
+
+    <item>
+      <title>第1回 日付が壊れていて長さが秒数表記</title>
+      <guid>ep-001</guid>
+      <description>素のテキストのショーノート</description>
+      <pubDate>いつか</pubDate>
+      <enclosure url="https://example.test/ep001.mp3" type="audio/mpeg"/>
+      <itunes:duration>1800</itunes:duration>
+    </item>
+  </channel>
+</rss>

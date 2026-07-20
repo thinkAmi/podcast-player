@@ -22,6 +22,9 @@ complexity:
       - '**/jsTest/**'
       - '**/iosTest/**'
       - '**/data/db/**'
+    # インターフェースを実装したクラスの関数の数は、契約が決めるものであって
+    # そのクラスが責務を抱えすぎている証拠ではない。
+    ignoreOverridden: true
   LongParameterList:
     excludes:
       - '**/data/db/**'
@@ -63,6 +66,11 @@ style:
         value: 'android.**'
       - reason: 'logic 層は純粋 Kotlin に保つ(AndroidX 依存禁止)'
         value: 'androidx.**'
+      # XmlPullParser は android.* ではないが実体は Android 提供の API で、
+      # JVM ユニットテストでは動かない。logic 層の「JVM でテストできる」性質を守るため禁止する。
+      # XML の走査は data 層で行い、logic 層には抽出済みの文字列を渡すこと。
+      - reason: 'XmlPullParser は Android の API。XML の走査は data 層の責務'
+        value: 'org.xmlpull.**'
       - reason: 'logic 層は他層に依存してはならない(依存の向きは data/ui/player → logic)'
         value: 'dev.thinkami.podcastplayer.data.**'
       - reason: 'logic 層は他層に依存してはならない(依存の向きは data/ui/player → logic)'
