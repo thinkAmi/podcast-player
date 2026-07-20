@@ -3,6 +3,7 @@ package dev.thinkami.podcastplayer.ui.player
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Pause
@@ -37,7 +38,11 @@ fun MiniPlayer(
         color = MaterialTheme.colorScheme.surfaceContainerHigh,
     ) {
         Row(
-            modifier = Modifier.clickable(onClick = onOpenPlayer).padding(start = 16.dp),
+            // ナビゲーションバーに重ならないようにする(edge-to-edge のため画面下端まで描画される)。
+            modifier =
+                Modifier.clickable(onClick = onOpenPlayer)
+                    .navigationBarsPadding()
+                    .padding(start = 16.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
             Text(

@@ -38,6 +38,9 @@ class PlaybackService : MediaSessionService() {
     /** 視聴済みにしたが、まだ再生中でファイルを消せていないエピソード。 */
     private val pendingDeletion = mutableSetOf<Long>()
 
+    /** いま鳴っているエピソード。曲が変わった瞬間に「前のもの」を知るために保持する。 */
+    private var currentEpisodeId: Long? = null
+
     private val episodeRepository: EpisodeRepository
         get() = appContainer.episodeRepository
 
@@ -97,6 +100,7 @@ class PlaybackService : MediaSessionService() {
 
     private suspend fun persistProgress(player: Player) {
         val episodeId = player.currentMediaItem?.mediaId?.toLongOrNull() ?: return
+        currentEpisodeId = episodeId
         val position = player.currentPosition
         val duration = player.duration.takeIf { it != C.TIME_UNSET }
 
@@ -115,15 +119,31 @@ class PlaybackService : MediaSessionService() {
     private inner class PlaybackListener : Player.Listener {
 
         override fun onMediaItemTransition(mediaItem: MediaItem?, reason: Int) {
+            val previous = currentEpisodeId
+            currentEpisodeId = mediaItem?.mediaId?.toLongOrNull()
+
+            // 自動で次へ移ったということは、前のエピソードは最後まで鳴り切ったということ。
+            if (reason == Player.MEDIA_ITEM_TRANSITION_REASON_AUTO && previous != null) {
+                completeAndDelete(previous)
+            }
             // 別のエピソードへ移ったので、聴き終わったぶんのファイルを消してよい。
-            flushPendingDeletion(exceptMediaId = mediaItem?.mediaId?.toLongOrNull())
+            flushPendingDeletion(exceptMediaId = currentEpisodeId)
         }
 
         override fun onPlaybackStateChanged(playbackState: Int) {
             if (playbackState == Player.STATE_ENDED) {
+                // 末尾まで鳴り切った。ここを取りこぼすと「最後まで聴いたのに視聴済みにならない」
+                // が起きる(位置のポーリングだけでは、終了直前の1秒を捉えられないことがある)。
+                currentEpisodeId?.let { completeAndDelete(it) }
                 flushPendingDeletion(exceptMediaId = null)
             }
         }
+    }
+
+    /** 聴き終わったことが確定した。視聴済みにし、条件を満たせばファイルを消す。 */
+    private fun completeAndDelete(episodeId: Long) {
+        pendingDeletion -= episodeId
+        serviceScope.launch { episodeRepository.markPlaybackCompleted(episodeId) }
     }
 
     private fun flushPendingDeletion(exceptMediaId: Long?) {

@@ -22,6 +22,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import dev.thinkami.podcastplayer.logic.model.Episode
+import dev.thinkami.podcastplayer.ui.showNotesToPlainText
 
 /** ショーノートを読むための画面。行の本文をタップすると開く。 */
 @OptIn(ExperimentalMaterial3Api::class)
@@ -62,8 +63,8 @@ fun EpisodeDetailScreen(
 @Composable
 private fun ShowNotes(episode: Episode) {
     Text(text = episode.title, style = MaterialTheme.typography.titleLarge)
-    val notes = episode.showNotes
-    if (notes.isNullOrBlank()) {
+    val notes = showNotesToPlainText(episode.showNotes)
+    if (notes == null) {
         Text(
             text = "ショーノートはありません",
             style = MaterialTheme.typography.bodyMedium,

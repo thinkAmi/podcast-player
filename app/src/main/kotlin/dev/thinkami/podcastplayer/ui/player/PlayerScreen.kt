@@ -1,5 +1,6 @@
 package dev.thinkami.podcastplayer.ui.player
 
+import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -32,6 +33,7 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import dev.thinkami.podcastplayer.logic.model.Episode
 import dev.thinkami.podcastplayer.player.PlaybackStatus
+import dev.thinkami.podcastplayer.ui.showNotesToPlainText
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -123,7 +125,11 @@ private fun TransportControls(
 
 @Composable
 private fun SpeedSelector(current: Float, onSelect: (Float) -> Unit) {
-    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+    // 速度の選択肢は画面幅に収まらないため横スクロールさせる。
+    Row(
+        modifier = Modifier.horizontalScroll(rememberScrollState()),
+        horizontalArrangement = Arrangement.spacedBy(8.dp),
+    ) {
         PLAYBACK_SPEEDS.forEach { speed ->
             FilterChip(
                 selected = kotlin.math.abs(current - speed) < 0.01f,
@@ -136,8 +142,8 @@ private fun SpeedSelector(current: Float, onSelect: (Float) -> Unit) {
 
 @Composable
 private fun ShowNotesSection(episode: Episode) {
-    val notes = episode.showNotes
-    if (!notes.isNullOrBlank()) {
+    val notes = showNotesToPlainText(episode.showNotes)
+    if (notes != null) {
         Text(
             text = notes,
             style = MaterialTheme.typography.bodyMedium,
