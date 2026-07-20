@@ -22,6 +22,7 @@ ktfmt = "0.64"
 junit = "4.13.2"
 androidxTestJunit = "1.3.0"
 androidxTestRunner = "1.7.0"
+espresso = "3.7.0"
 
 [libraries]
 compose-bom = { group = "androidx.compose", name = "compose-bom", version.ref = "composeBom" }
@@ -51,6 +52,9 @@ coroutines-test = { group = "org.jetbrains.kotlinx", name = "kotlinx-coroutines-
 junit = { group = "junit", name = "junit", version.ref = "junit" }
 androidx-test-junit = { group = "androidx.test.ext", name = "junit", version.ref = "androidxTestJunit" }
 androidx-test-runner = { group = "androidx.test", name = "runner", version.ref = "androidxTestRunner" }
+# Compose の UI テストが推移的に引き込む espresso-core 3.5.0 は、Android 16 で
+# 削除された InputManager.getInstance をリフレクションで呼ぶため動かない。明示的に上げる。
+espresso-core = { group = "androidx.test.espresso", name = "espresso-core", version.ref = "espresso" }
 compose-ui-test-junit4 = { group = "androidx.compose.ui", name = "ui-test-junit4" }
 compose-ui-test-manifest = { group = "androidx.compose.ui", name = "ui-test-manifest" }
 

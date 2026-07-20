@@ -2,7 +2,7 @@
 
 ## 1. プロジェクト基盤
 
-- [ ] 1.1 開発環境の確認(Android Studioインストール済み・Pixel 7 Proの開発者向けオプション+USBデバッグ有効化・adbで実機認識)
+- [x] 1.1 開発環境の確認(Android Studioインストール済み・Pixel 7 Proの開発者向けオプション+USBデバッグ有効化・adbで実機認識)
 - [x] 1.2 Androidプロジェクト新規作成(Kotlin + Compose、applicationId `dev.thinkami.podcastplayer`、minSdk=targetSdk=36、単一モジュール)
 - [ ] 1.3 git初期化・.gitignore整備・MITライセンス・GitHub公開リポジトリ `podcast-player` 作成・初回push
 - [x] 1.4 リポジトリ制限(settings.gradle.ktsで google()/mavenCentral() のみ)+ Gradle dependency verification 有効化
@@ -58,7 +58,7 @@
 
 ## 8. 統合検証
 
-- [ ] 8.1 全計装テストの実機実行(DAO・パーサー・削除)
+- [x] 8.1 全計装テストの実機実行(DAO・パーサー・削除)
 - [ ] 8.2 Koverゲート・detekt・lint・全テストのグリーン確認(ローカル+CI)
 - [ ] 8.3 実機E2E: 実フィード購読→更新→DL→外でのバックグラウンド再生→自動視聴済み→自動削除→フィルター追随の一連確認
 - [ ] 8.4 移行リハーサル: 実際の購読番組を登録し「すべて視聴済み」→聴きたいものを未聴へ戻す運用の確認
