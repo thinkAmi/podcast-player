@@ -7,6 +7,25 @@
 #  - baseline は使わない。greenfield なので初日から全ルールを適用し、
 #    違反が混入した瞬間にビルドを赤くする。
 
+complexity:
+  # Room の DAO は「宣言的なクエリの集まり」であって、責務が多すぎる実装クラスではない。
+  # 関数の数も引数の数も SQL の形が決めるものなので、これらのルールの意図が当てはまらない。
+  # 個別に @Suppress を撒くより、カテゴリとして除外する方が意図が明確に残る。
+  TooManyFunctions:
+    excludes:
+      - '**/test/**'
+      - '**/androidTest/**'
+      - '**/commonTest/**'
+      - '**/jvmTest/**'
+      - '**/androidUnitTest/**'
+      - '**/androidInstrumentedTest/**'
+      - '**/jsTest/**'
+      - '**/iosTest/**'
+      - '**/data/db/**'
+  LongParameterList:
+    excludes:
+      - '**/data/db/**'
+
 naming:
   FunctionNaming:
     # @Composable 関数は PascalCase が Compose の規約であるため除外する。

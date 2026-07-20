@@ -46,7 +46,13 @@ kover {
         // カバレッジの計測・ゲートとも logic 層(純粋ロジック)に限定する。
         // ui/data/player は薄いグルーコードで、数値を追うとテストが脆く高コストになるため
         // 計測対象から外す(Kover 0.9 の filters は reports 単位でのみ指定できる)。
-        filters { includes { classes("dev.thinkami.podcastplayer.logic.*") } }
+        filters {
+            includes { classes("dev.thinkami.podcastplayer.logic.*") }
+            // ドメインモデルは判断を持たないデータ保持クラス。data class が生成する
+            // equals/hashCode/copy の行を数えると、意味のないテストで数字を稼ぐ誘惑が生まれる。
+            // ゲートは「判断」そのもの(ListeningRules / EpisodeFiltering / PlaybackQueue)に掛ける。
+            excludes { classes("dev.thinkami.podcastplayer.logic.model.*") }
+        }
         verify { rule("logic層の行カバレッジ") { bound { minValue = 90 } } }
     }
 }

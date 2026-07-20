@@ -7,18 +7,18 @@
 - [ ] 1.3 git初期化・.gitignore整備・MITライセンス・GitHub公開リポジトリ `podcast-player` 作成・初回push
 - [x] 1.4 リポジトリ制限(settings.gradle.ktsで google()/mavenCentral() のみ)+ Gradle dependency verification 有効化
 - [x] 1.5 依存追加(Compose / Media3 / Room+KSP / kotlinx-coroutines のみ。バージョン完全固定)
-- [x] 1.6 品質ツール導入: ktfmt / Android Lint(warningsAsErrors)/ allWarningsAsErrors / detekt 1.23.x(design D10のルール群をdetekt.ymlに設定)
+- [x] 1.6 品質ツール導入: ktfmt / Android Lint(warningsAsErrors)/ allWarningsAsErrors / detekt 2.0.0-alpha.5(design D10のルール群をdetekt.ymlに設定)
 - [x] 1.7 Kover導入(logic/パッケージのみ行カバレッジ90%ゲート)
 - [x] 1.8 最小CI(GitHub Actions: build + JVMテスト + detekt/lint + koverVerify。actionsはSHA固定)
 - [x] 1.9 CLAUDE.md作成(4層構造・detektルール・モックレス方針・「機能を増やさない/通信はユーザー起点」を事前指示として記載)
 
 ## 2. データ層とロジック層の骨格
 
-- [ ] 2.1 Roomスキーマ定義(feed: フィルター2カラム+playback_speed含む / episode: guid・played・downloaded・position_ms・favorite・enclosure_url・local_path含む)
-- [ ] 2.2 DAO定義(購読CRUD / エピソードupsert / フィルタークエリ(Flow) / 状態更新 / 一括視聴済み・未聴UPDATE)
-- [ ] 2.3 logic/: フィルター条件・視聴済み判定(残り10秒定数)・削除対象決定(played AND NOT favorite)の純粋関数 + JVMユニットテスト
-- [ ] 2.4 手動DIコンテナ(Applicationクラスに依存物組み立て)
-- [ ] 2.5 Room DAOの計装テスト(in-memory DB。フィルターAND条件・一括UPDATE・状態保持を検証)
+- [x] 2.1 Roomスキーマ定義(feed: フィルター2カラム+playback_speed含む / episode: guid・played・downloaded・position_ms・favorite・enclosure_url・local_path含む)
+- [x] 2.2 DAO定義(購読CRUD / エピソードupsert / フィルタークエリ(Flow) / 状態更新 / 一括視聴済み・未聴UPDATE)
+- [x] 2.3 logic/: フィルター条件・視聴済み判定(残り10秒定数)・削除対象決定(played AND NOT favorite)の純粋関数 + JVMユニットテスト
+- [x] 2.4 手動DIコンテナ(Applicationクラスに依存物組み立て)
+- [x] 2.5 Room DAOの計装テスト(in-memory DB。フィルターAND条件・一括UPDATE・状態保持を検証)
 
 ## 3. フィード購読(feed-subscription)
 
