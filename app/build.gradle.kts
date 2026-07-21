@@ -70,9 +70,19 @@ android {
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
 
+    // 計装テストは instrumented ビルドタイプで走らせる。applicationIdSuffix により
+    // 本番アプリ(dev.thinkami.podcastplayer)とは別パッケージになり、テストが本番の
+    // DB・購読データ・DLファイルに到達することを OS のサンドボックスが阻止する。
+    // 実端末を普段使いしているための保護であり、この2箇所を削除してはならない。
+    testBuildType = "instrumented"
+
     buildTypes {
         release {
             isMinifyEnabled = false
+        }
+        create("instrumented") {
+            initWith(getByName("debug"))
+            applicationIdSuffix = ".instrumented"
         }
     }
 
@@ -131,7 +141,9 @@ dependencies {
     implementation(libs.coroutines.android)
 
     debugImplementation(libs.compose.ui.tooling)
-    debugImplementation(libs.compose.ui.test.manifest)
+    // ui-test-manifest はテスト対象アプリ側に必要。testBuildType = instrumented のため
+    // debugImplementation では計装テストから見えない
+    "instrumentedImplementation"(libs.compose.ui.test.manifest)
 
     testImplementation(libs.junit)
     testImplementation(libs.coroutines.test)

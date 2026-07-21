@@ -1,0 +1,14 @@
+{
+  "permissions": {
+    "deny": [
+      "Bash(adb uninstall dev.thinkami.podcastplayer)",
+      "Bash(adb shell pm clear dev.thinkami.podcastplayer)",
+      "Bash(./gradlew uninstallDebug)",
+      "Bash(./gradlew uninstallDebug *)",
+      "Bash(./gradlew uninstallRelease)",
+      "Bash(./gradlew uninstallRelease *)",
+      "Bash(./gradlew uninstallAll)",
+      "Bash(./gradlew uninstallAll *)"
+    ]
+  }
+}
