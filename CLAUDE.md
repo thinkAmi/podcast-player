@@ -1,0 +1,104 @@
+# podcast-player
+
+個人用の Android ポッドキャストプレイヤー。利用者は開発者本人ひとり、端末は Pixel 7 Pro
+(Android 16)1台のみ。
+
+仕様と設計の正本は `openspec/changes/podcast-player-mvp/` にある。実装前にそこを読むこと。
+
+## 設計思想(判断に迷ったらここに戻る)
+
+このアプリは Podcast Addict の**認知負荷**への反動として作られた。したがって:
+
+1. **機能を増やさないことが機能** — 機能追加の判断基準は「Podcast Addict になってしまわないか」。
+   便利そうという理由で機能・設定・オプションを足さない。
+2. **通信は例外なくユーザー起点** — 起動時の自動更新、自動ダウンロード、自動リトライを
+   実装してはならない。バックグラウンドで勝手にギガを消費しないことが利用者の明示的な要求。
+3. **設定画面を作らない。ソースコードが設定ファイル** — 閾値(視聴済み判定の残り10秒など)は
+   コード内定数にする。変更したくなったら定数を書き換えてビルドする。
+4. **判断と実行を分離する** — 「削除すべきか」の判断は純粋関数(`logic/`)、
+   「実際に削除する」は `data/`。これはテスト戦略が成立するための前提条件であって、
+   単なる好みの構造ではない。
+
+## 構成
+
+単一モジュール `:app`、4層パッケージ構成。
+
+```
+ui/     Compose 画面 + ViewModel
+logic/  純粋 Kotlin(Android API 依存ゼロ)。視聴済み判定・削除対象決定・
+        フィルター条件・RSS の構造解釈など「判断」のすべて
+data/   Room / HTTP(HttpURLConnection) / XmlPullParser / ファイル管理(「実行」)
+player/ Media3 の結線。再生イベントを data 層へ書き戻す
+```
+
+依存の向き: `ui → logic, data, player` / `data, player → logic`。
+
+禁止事項:
+
+- `logic/` から `android.*` `androidx.*` および他層への import(**detekt が機械的に拒否する**)
+- `ui/` から Room の DAO/Entity を直接 import すること(規約。ViewModel 経由で repository を使う)
+- DI フレームワーク、UseCase クラス層、マルチモジュール化(この規模では儀式)
+
+## 技術選定の要点
+
+- **Media3** (ExoPlayer + MediaSession + MediaSessionService) — 再生の全責務。自作しない
+- **Room** — DB。`Flow` を返すクエリがリアクティブの背骨。
+  「DB を書けば画面が追随する」を基本構造にする
+- **HttpURLConnection / XmlPullParser** — OS 標準。OkHttp や RSS ライブラリを追加しない
+- **画像は BitmapFactory + 自前ファイルキャッシュ** — Coil 等を追加しない
+- 実行時のサードパーティ依存は**ゼロ**。信頼するベンダーは Google と JetBrains のみ。
+  依存を足す提案をする前に、OS 標準 API で書けないか検討すること
+- バージョンは `gradle/libs.versions.toml` で完全固定。動的バージョンを使わない
+- `minSdk = targetSdk = compileSdk = 36`。**互換性のための分岐を書かない**
+
+## 品質ゲート(すべてビルドを失敗させる)
+
+コミット前に `./gradlew check` が通ること。
+
+| ツール | 役割 |
+|---|---|
+| ktfmt (kotlinlang style) | 整形。設定不可・決定論的。`./gradlew ktfmtFormat` で自動整形 |
+| detekt 2.0 | 意味の検査。設定は `config/detekt/detekt.yml` |
+| Android Lint | `warningsAsErrors = true` |
+| Kotlin コンパイラ | `allWarningsAsErrors = true` |
+| Kover | `logic/` の行カバレッジ 90% 未満で失敗 |
+
+detekt が特に狙って禁止しているもの(AI 実装が使いがちな逃げ道):
+
+- **例外の握りつぶし** — `SwallowedException` / `TooGenericExceptionCaught` /
+  `EmptyCatchBlock` / `ReturnFromFinally`
+- **未完成コードのコミット** — `ForbiddenComment` が `TODO:` `FIXME:` `HACK:` `STOPSHIP:` を禁止。
+  「あとで実装」のスタブを残して完了と報告しない。やり残しは
+  `openspec/changes/*/tasks.md` に記録する
+- **関数の肥大化** — `LongMethod`(60行)/ `CyclomaticComplexMethod` /
+  `NestedBlockDepth` / `LongParameterList`
+- **層違反** — `ForbiddenImport`(`logic/` の純粋性)
+
+detekt の baseline は使わない。違反は抑制せず直すこと。
+
+## テストの書き方
+
+- **モックライブラリを使わない**。リポジトリは interface にし、テストでは手書きの
+  Fake 実装を渡す。MockK / Mockito を追加しない
+- **Robolectric を使わない**。判断ロジックを `logic/` の純粋関数に寄せることで、
+  テストの大半を高速な JVM ユニットテストにする
+- Android 依存(Room の DAO、XmlPullParser を使うパーサー)は実機での計装テスト。
+  `XmlPullParser` は JVM ユニットテストでは動かないので注意
+- `ui/` `player/` のカバレッジ数値は追わない。薄いグルーコードに保ち、スモークテストで足りる
+
+## 開発環境
+
+- ローカルの Android Studio(`~/Applications/Android Studio.app`)。DevContainer は使わない
+- 実機へは USB 直接インストール。エミュレータは使わない
+- Gradle は wrapper 経由(`./gradlew`)。ラッパーは配布物の SHA-256 を検証する設定
+
+## 実機のデータを消さないために(重要)
+
+利用者は本番端末で普段使いしている。**改善のたびに購読リストを消してはならない。**
+
+- **日常の改善は `./gradlew installDebug`** — 同じ署名の上書きインストールなので、購読・
+  視聴状態・DL ファイルはすべて保持される。ほとんどの変更はこれで済む
+- **`./gradlew connectedDebugAndroidTest`(計装テスト)はアプリをアンインストールする** —
+  実行後、購読データもファイルも消える。実データのある端末では安易に流さないこと。
+  計装テストで確かめたいこと(Room・UI)があるときは、その旨を利用者に伝えてから実行する
+- 消えても復旧は数分(URL を登録し直して「すべて視聴済み」を押す)。この軽さは維持する

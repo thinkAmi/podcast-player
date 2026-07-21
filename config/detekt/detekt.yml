@@ -1,0 +1,98 @@
+# 既定ルールセットへの差分のみを記述する(build.gradle.kts で buildUponDefaultConfig = true)。
+#
+# 方針:
+#  - 整形(行幅・空白・インデント)の判断は ktfmt が独占する。detekt 側の整形系ルールは無効化する。
+#  - detekt が担うのは「意味」の検査、特に AI 実装が使いがちな逃げ道の機械的封鎖:
+#      例外の握りつぶし / TODO スタブの putting-off / 関数の肥大化 / 層をまたぐ import
+#  - baseline は使わない。greenfield なので初日から全ルールを適用し、
+#    違反が混入した瞬間にビルドを赤くする。
+
+complexity:
+  # Room の DAO は「宣言的なクエリの集まり」であって、責務が多すぎる実装クラスではない。
+  # 関数の数も引数の数も SQL の形が決めるものなので、これらのルールの意図が当てはまらない。
+  # 個別に @Suppress を撒くより、カテゴリとして除外する方が意図が明確に残る。
+  TooManyFunctions:
+    excludes:
+      - '**/test/**'
+      - '**/androidTest/**'
+      - '**/commonTest/**'
+      - '**/jvmTest/**'
+      - '**/androidUnitTest/**'
+      - '**/androidInstrumentedTest/**'
+      - '**/jsTest/**'
+      - '**/iosTest/**'
+      - '**/data/db/**'
+      # ViewModel の公開関数は、その画面で利用者ができる操作の一覧そのもの。
+      # DAO と同じく、数を決めるのは外部の要求(画面の操作)であって、クラスが責務を
+      # 抱えすぎている証拠ではない。分割しても操作の総数は変わらず、間接層が増えるだけ。
+      - '**/ui/**'
+    # インターフェースを実装したクラスの関数の数は、契約が決めるものであって
+    # そのクラスが責務を抱えすぎている証拠ではない。
+    ignoreOverridden: true
+  LongParameterList:
+    excludes:
+      - '**/data/db/**'
+
+naming:
+  FunctionNaming:
+    # @Composable 関数は PascalCase が Compose の規約であるため除外する。
+    ignoreAnnotated:
+      - 'Composable'
+
+style:
+  # 行幅は ktfmt(kotlinlang style, 100列)が管理する。二重管理を避ける。
+  MaxLineLength:
+    active: false
+
+  # Compose の寸法(dp/sp)や重みは、その場の見た目を決めるためのリテラルであって
+  # 意味のある定数ではない。すべてに名前を付けると、かえって画面の形が読み取りにくくなる。
+  MagicNumber:
+    excludes:
+      - '**/test/**'
+      - '**/androidTest/**'
+      - '**/commonTest/**'
+      - '**/jvmTest/**'
+      - '**/androidUnitTest/**'
+      - '**/androidInstrumentedTest/**'
+      - '**/jsTest/**'
+      - '**/iosTest/**'
+      - '**/*.kts'
+      - '**/ui/**'
+
+  # 未完成のコードをコミットさせない。AI が「あとで実装」のスタブを残す逃げ道を塞ぐ。
+  ForbiddenComment:
+    active: true
+    comments:
+      - reason: '未実装のまま完了扱いにしない。実装するか、課題として artifact 側に記録する。'
+        value: 'TODO:'
+      - reason: '未実装のまま完了扱いにしない。実装するか、課題として artifact 側に記録する。'
+        value: 'FIXME:'
+      - reason: '暫定実装を残さない。設計上の妥協は design.md に記録する。'
+        value: 'HACK:'
+      - reason: '出荷前に対処すべき問題を残さない。'
+        value: 'STOPSHIP:'
+
+  # 層違反の機械的検出(design D5)。
+  # detekt のルール設定は1ルール1定義のため、最も重要な「logic 層の純粋性」を対象にする。
+  # logic/ は Android API・他層・DB/ネットワークから独立していなければならない。
+  # これはモックレス・Robolectric レスのテスト戦略が成立するための前提条件。
+  ForbiddenImport:
+    active: true
+    includes:
+      - '**/logic/**'
+    forbiddenImports:
+      - reason: 'logic 層は純粋 Kotlin に保つ(Android API 依存禁止)'
+        value: 'android.**'
+      - reason: 'logic 層は純粋 Kotlin に保つ(AndroidX 依存禁止)'
+        value: 'androidx.**'
+      # XmlPullParser は android.* ではないが実体は Android 提供の API で、
+      # JVM ユニットテストでは動かない。logic 層の「JVM でテストできる」性質を守るため禁止する。
+      # XML の走査は data 層で行い、logic 層には抽出済みの文字列を渡すこと。
+      - reason: 'XmlPullParser は Android の API。XML の走査は data 層の責務'
+        value: 'org.xmlpull.**'
+      - reason: 'logic 層は他層に依存してはならない(依存の向きは data/ui/player → logic)'
+        value: 'dev.thinkami.podcastplayer.data.**'
+      - reason: 'logic 層は他層に依存してはならない(依存の向きは data/ui/player → logic)'
+        value: 'dev.thinkami.podcastplayer.ui.**'
+      - reason: 'logic 層は他層に依存してはならない(依存の向きは data/ui/player → logic)'
+        value: 'dev.thinkami.podcastplayer.player.**'

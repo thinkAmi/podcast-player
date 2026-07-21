@@ -1,0 +1,15 @@
+# IDE
+.idea/
+*.iml
+
+# Android / Gradle
+local.properties
+.gradle/
+build/
+.kotlin/
+captures/
+*.apk
+*.aab
+
+# macOS
+.DS_Store
