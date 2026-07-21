@@ -84,6 +84,7 @@ detekt の baseline は使わない。違反は抑制せず直すこと。
   テストの大半を高速な JVM ユニットテストにする
 - Android 依存(Room の DAO、XmlPullParser を使うパーサー)は実機での計装テスト。
   `XmlPullParser` は JVM ユニットテストでは動かないので注意
+- 計装テストの Room は `inMemoryDatabaseBuilder` を使う。実 DB ファイルを作らない
 - `ui/` `player/` のカバレッジ数値は追わない。薄いグルーコードに保ち、スモークテストで足りる
 
 ## 開発環境
@@ -98,7 +99,15 @@ detekt の baseline は使わない。違反は抑制せず直すこと。
 
 - **日常の改善は `./gradlew installDebug`** — 同じ署名の上書きインストールなので、購読・
   視聴状態・DL ファイルはすべて保持される。ほとんどの変更はこれで済む
-- **`./gradlew connectedDebugAndroidTest`(計装テスト)はアプリをアンインストールする** —
-  実行後、購読データもファイルも消える。実データのある端末では安易に流さないこと。
-  計装テストで確かめたいこと(Room・UI)があるときは、その旨を利用者に伝えてから実行する
+- **計装テストは別パッケージで走る** — `testBuildType = "instrumented"` と
+  `applicationIdSuffix = ".instrumented"`(`app/build.gradle.kts`)により、
+  `./gradlew connectedAndroidTest` は `dev.thinkami.podcastplayer.instrumented` という
+  別アプリとしてインストール・実行・アンインストールされる。本番アプリのデータには
+  OS のサンドボックスにより到達できないため、実データのある端末でも安全に流せる。
+  この設定を削除・変更してはならない
+- テストが異常終了して `.instrumented` が端末に残ったら
+  `adb uninstall dev.thinkami.podcastplayer.instrumented` で消す(本番アプリには影響しない)
+- **本番パッケージへの破壊コマンドは deny 済み** — `.claude/settings.json` が
+  `adb uninstall` / `pm clear` / `gradlew uninstallDebug` 等の本番パッケージ向け実行を
+  機械的に拒否する。拒否されたら回避策を探さず、その操作が本当に必要か利用者に確認する
 - 消えても復旧は数分(URL を登録し直して「すべて視聴済み」を押す)。この軽さは維持する
