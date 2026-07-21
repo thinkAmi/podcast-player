@@ -97,6 +97,48 @@ class EpisodeRowTest {
     }
 
     @Test
+    fun 現在の行で再生中なら一時停止アイコンが出てタップでonPlayが呼ばれる() {
+        var tapped = false
+        composeRule.setContent {
+            EpisodeRow(
+                episode = episode(downloaded = true),
+                downloadState = null,
+                isCurrent = true,
+                isPlaying = true,
+                onPlay = { tapped = true },
+                onDownload = {},
+                onTogglePlayed = {},
+                onOpenDetail = {},
+            )
+        }
+
+        composeRule.onNodeWithContentDescription("一時停止").performClick()
+
+        assertTrue(tapped)
+    }
+
+    @Test
+    fun 現在の行で一時停止中なら再生アイコンが出てタップでonPlayが呼ばれる() {
+        var tapped = false
+        composeRule.setContent {
+            EpisodeRow(
+                episode = episode(downloaded = true),
+                downloadState = null,
+                isCurrent = true,
+                isPlaying = false,
+                onPlay = { tapped = true },
+                onDownload = {},
+                onTogglePlayed = {},
+                onOpenDetail = {},
+            )
+        }
+
+        composeRule.onNodeWithContentDescription("再生").performClick()
+
+        assertTrue(tapped)
+    }
+
+    @Test
     fun 視聴済みなら未聴に戻す操作が出る() {
         composeRule.setContent {
             EpisodeRow(

@@ -10,6 +10,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.Download
 import androidx.compose.material.icons.filled.ErrorOutline
+import androidx.compose.material.icons.filled.Pause
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.outlined.CheckCircle
 import androidx.compose.material3.CircularProgressIndicator
@@ -31,7 +32,7 @@ import java.time.format.DateTimeFormatter
  * エピソード1行。
  *
  * タップできる領域は3つ:
- * - 左のアイコン: 未DLならダウンロード、DL済みなら再生
+ * - 左のアイコン: 未DLならダウンロード、DL済みなら再生。ただし現在のエピソード (再生キューがいま指している行)では再生状態を表示し、タップは再生/一時停止のトグルになる
  * - 右のチェック: 視聴済みの切り替え
  * - それ以外(本文): ショーノートのある詳細画面へ
  *
@@ -46,12 +47,21 @@ fun EpisodeRow(
     onTogglePlayed: () -> Unit,
     onOpenDetail: () -> Unit,
     modifier: Modifier = Modifier,
+    isCurrent: Boolean = false,
+    isPlaying: Boolean = false,
 ) {
     Row(
         modifier = modifier.clickable(onClick = onOpenDetail).padding(horizontal = 8.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        LeadingAction(episode, downloadState, onPlay = onPlay, onDownload = onDownload)
+        LeadingAction(
+            episode,
+            downloadState,
+            isCurrent = isCurrent,
+            isPlaying = isPlaying,
+            onPlay = onPlay,
+            onDownload = onDownload,
+        )
 
         Column(
             modifier = Modifier.weight(1f).padding(vertical = 12.dp),
@@ -73,6 +83,8 @@ fun EpisodeRow(
 private fun LeadingAction(
     episode: Episode,
     downloadState: DownloadState?,
+    isCurrent: Boolean,
+    isPlaying: Boolean,
     onPlay: () -> Unit,
     onDownload: () -> Unit,
 ) {
@@ -84,6 +96,14 @@ private fun LeadingAction(
                 modifier = Modifier.padding(horizontal = 12.dp).size(32.dp),
                 strokeWidth = 3.dp,
             )
+        isCurrent ->
+            // 現在のエピソード。タップはトグルへ読み替えられる(EpisodeListViewModel.play)。
+            IconButton(onClick = onPlay) {
+                Icon(
+                    imageVector = if (isPlaying) Icons.Filled.Pause else Icons.Filled.PlayArrow,
+                    contentDescription = if (isPlaying) "一時停止" else "再生",
+                )
+            }
         episode.downloaded ->
             IconButton(onClick = onPlay) {
                 Icon(Icons.Filled.PlayArrow, contentDescription = "再生")

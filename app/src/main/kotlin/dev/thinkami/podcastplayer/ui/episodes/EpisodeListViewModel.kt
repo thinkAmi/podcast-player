@@ -13,6 +13,7 @@ import dev.thinkami.podcastplayer.logic.model.EpisodeFilter
 import dev.thinkami.podcastplayer.logic.model.Feed
 import dev.thinkami.podcastplayer.logic.model.PlayedSnapshot
 import dev.thinkami.podcastplayer.player.PlaybackConnection
+import dev.thinkami.podcastplayer.player.PlaybackStatus
 import dev.thinkami.podcastplayer.ui.UndoablePlayedChange
 import java.io.IOException
 import kotlinx.coroutines.ExperimentalCoroutinesApi
@@ -54,6 +55,9 @@ class EpisodeListViewModel(
             .stateIn(viewModelScope, SharingStarted.WhileSubscribed(STOP_TIMEOUT_MS), emptyList())
 
     val downloadStates: StateFlow<Map<Long, DownloadState>> = downloader.states
+
+    /** いま鳴っているものの状態。現在のエピソードの行の表示と、play() のトグル読み替えに使う。 */
+    val playbackStatus: StateFlow<PlaybackStatus> = playback.status
 
     private val mutableIsRefreshing = MutableStateFlow(false)
     val isRefreshing: StateFlow<Boolean> = mutableIsRefreshing.asStateFlow()
@@ -190,8 +194,14 @@ class EpisodeListViewModel(
 
     // ---- 再生 ----
 
-    /** いま表示されている並び順のまま、DL済みだけを再生順にして渡す。 */
+    /** いま表示されている並び順のまま、DL済みだけを再生順にして渡す。 現在のエピソードだけは開始ではなくトグルに読み替える。 */
     fun play(episode: Episode) {
+        // キューを組み直すと保存位置へシークし直す「リセット」になってしまうため、
+        // 現在のエピソードは再生/一時停止の切り替えだけを行う。
+        if (episode.id == playback.status.value.episodeId) {
+            playback.togglePlayPause()
+            return
+        }
         val order = PlaybackQueue.playbackOrderFrom(episodes.value, episode.id)
         if (order.isEmpty()) {
             mutableMessage.value = "ダウンロードしてから再生できます"
