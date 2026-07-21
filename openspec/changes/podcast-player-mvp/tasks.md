@@ -4,7 +4,7 @@
 
 - [x] 1.1 開発環境の確認(Android Studioインストール済み・Pixel 7 Proの開発者向けオプション+USBデバッグ有効化・adbで実機認識)
 - [x] 1.2 Androidプロジェクト新規作成(Kotlin + Compose、applicationId `dev.thinkami.podcastplayer`、minSdk=targetSdk=36、単一モジュール)
-- [ ] 1.3 git初期化・.gitignore整備・MITライセンス・GitHub公開リポジトリ `podcast-player` 作成・初回push
+- [x] 1.3 git初期化・.gitignore整備・MITライセンス・GitHub公開リポジトリ `podcast-player` 作成・初回push
 - [x] 1.4 リポジトリ制限(settings.gradle.ktsで google()/mavenCentral() のみ)+ Gradle dependency verification 有効化
 - [x] 1.5 依存追加(Compose / Media3 / Room+KSP / kotlinx-coroutines のみ。バージョン完全固定)
 - [x] 1.6 品質ツール導入: ktfmt / Android Lint(warningsAsErrors)/ allWarningsAsErrors / detekt 2.0.0-alpha.5(design D10のルール群をdetekt.ymlに設定)
