@@ -1,9 +1,6 @@
 package dev.thinkami.podcastplayer.ui.subscriptions
 
-import androidx.compose.foundation.clickable
-import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
@@ -31,9 +28,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import dev.thinkami.podcastplayer.logic.model.Feed
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -74,8 +69,8 @@ fun SubscriptionListScreen(
                 EmptyState()
             } else {
                 LazyColumn {
-                    items(feeds, key = { it.id }) { feed ->
-                        FeedRow(feed = feed, onClick = { onOpenFeed(feed.id) })
+                    items(feeds, key = { it.feed.id }) { item ->
+                        FeedRow(item = item, onClick = { onOpenFeed(item.feed.id) })
                     }
                 }
             }
@@ -89,23 +84,6 @@ fun SubscriptionListScreen(
                 viewModel.subscribe(url)
             },
             onDismiss = { showAddDialog = false },
-        )
-    }
-}
-
-@Composable
-private fun FeedRow(feed: Feed, onClick: () -> Unit) {
-    Column(
-        modifier =
-            Modifier.clickable(onClick = onClick).padding(horizontal = 16.dp, vertical = 14.dp),
-        verticalArrangement = Arrangement.spacedBy(2.dp),
-    ) {
-        Text(text = feed.title, style = MaterialTheme.typography.bodyLarge, maxLines = 2)
-        Text(
-            text = feed.feedUrl,
-            style = MaterialTheme.typography.bodySmall,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-            maxLines = 1,
         )
     }
 }

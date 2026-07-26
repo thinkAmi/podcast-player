@@ -3,6 +3,7 @@ package dev.thinkami.podcastplayer.data
 import dev.thinkami.podcastplayer.logic.model.Episode
 import dev.thinkami.podcastplayer.logic.model.EpisodeFilter
 import dev.thinkami.podcastplayer.logic.model.Feed
+import dev.thinkami.podcastplayer.logic.model.SubscriptionListItem
 import kotlinx.coroutines.flow.Flow
 
 /**
@@ -13,6 +14,9 @@ import kotlinx.coroutines.flow.Flow
 interface FeedRepository {
 
     fun observeFeeds(): Flow<List<Feed>>
+
+    /** 購読一覧画面用。各番組に未聴数を添えて流す。並びは observeFeeds と同じタイトル順。 */
+    fun observeSubscriptionList(): Flow<List<SubscriptionListItem>>
 
     fun observeFeed(feedId: Long): Flow<Feed?>
 

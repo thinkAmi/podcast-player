@@ -3,7 +3,7 @@ package dev.thinkami.podcastplayer.ui.subscriptions
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import dev.thinkami.podcastplayer.data.FeedRepository
-import dev.thinkami.podcastplayer.logic.model.Feed
+import dev.thinkami.podcastplayer.logic.model.SubscriptionListItem
 import java.io.IOException
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
@@ -14,9 +14,9 @@ import kotlinx.coroutines.launch
 
 class SubscriptionListViewModel(private val feedRepository: FeedRepository) : ViewModel() {
 
-    val feeds: StateFlow<List<Feed>> =
+    val feeds: StateFlow<List<SubscriptionListItem>> =
         feedRepository
-            .observeFeeds()
+            .observeSubscriptionList()
             .stateIn(viewModelScope, SharingStarted.WhileSubscribed(STOP_TIMEOUT_MS), emptyList())
 
     private val mutableIsRefreshing = MutableStateFlow(false)

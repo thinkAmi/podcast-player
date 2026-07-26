@@ -38,4 +38,12 @@ object ListeningRules {
     /** 再生位置を復元すべき位置。完了済みのものは先頭から聴き直せるようにする。 */
     fun resumePositionMs(episode: Episode): Long =
         if (episode.played) 0L else episode.positionMs.coerceAtLeast(0L)
+
+    /**
+     * 未聴エピソード数。購読一覧のバッジに表示する値の定義。
+     *
+     * 実際の一覧表示はRoomのCOUNTで数える(DBを書けば画面が追随する構造にするため)。ここの実装は
+     * 同じ条件を宣言的に表現したもので、等価テストの参照実装として使う。両者は同じ意味でなければ ならない。
+     */
+    fun countUnplayed(episodes: List<Episode>): Int = episodes.count { !it.played }
 }

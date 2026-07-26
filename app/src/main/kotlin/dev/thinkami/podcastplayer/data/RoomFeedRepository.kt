@@ -5,6 +5,7 @@ import dev.thinkami.podcastplayer.data.db.EpisodeDao
 import dev.thinkami.podcastplayer.data.db.EpisodeEntity
 import dev.thinkami.podcastplayer.data.db.FeedDao
 import dev.thinkami.podcastplayer.data.db.FeedEntity
+import dev.thinkami.podcastplayer.data.db.FeedWithUnplayedCount
 import dev.thinkami.podcastplayer.data.db.toEntity
 import dev.thinkami.podcastplayer.data.db.toModel
 import dev.thinkami.podcastplayer.data.net.HttpFetcher
@@ -13,6 +14,7 @@ import dev.thinkami.podcastplayer.data.storage.MediaFileStorage
 import dev.thinkami.podcastplayer.logic.model.Episode
 import dev.thinkami.podcastplayer.logic.model.EpisodeFilter
 import dev.thinkami.podcastplayer.logic.model.Feed
+import dev.thinkami.podcastplayer.logic.model.SubscriptionListItem
 import dev.thinkami.podcastplayer.logic.rss.NormalizedItem
 import dev.thinkami.podcastplayer.logic.rss.ParsedFeed
 import dev.thinkami.podcastplayer.logic.rss.RssInterpretation
@@ -32,6 +34,11 @@ class RoomFeedRepository(
 
     override fun observeFeeds(): Flow<List<Feed>> =
         feedDao.observeAll().map { entities -> entities.map(FeedEntity::toModel) }
+
+    override fun observeSubscriptionList(): Flow<List<SubscriptionListItem>> =
+        feedDao.observeAllWithUnplayedCount().map { rows ->
+            rows.map(FeedWithUnplayedCount::toModel)
+        }
 
     override fun observeFeed(feedId: Long): Flow<Feed?> =
         feedDao.observeById(feedId).map { it?.toModel() }
