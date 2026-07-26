@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  計装テストの Fake サーバーは端末内の loopback で平文HTTPを話す。自己署名証明書の管理を
+  持ち込まないために、127.0.0.1 に限って平文を許可する。
+
+  このファイルは instrumented ビルドタイプにしか含まれない。日常の installDebug と
+  リリースビルドでは targetSdk 36 の既定どおり平文HTTPは遮断されたままであり、
+  本番アプリの防御は一切緩まない。
+-->
+<network-security-config>
+    <domain-config cleartextTrafficPermitted="true">
+        <domain includeSubdomains="false">127.0.0.1</domain>
+    </domain-config>
+</network-security-config>
