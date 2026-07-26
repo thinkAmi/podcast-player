@@ -3,6 +3,11 @@
    <configuration>
       <verify-metadata>true</verify-metadata>
       <verify-signatures>false</verify-signatures>
+      <trusted-artifacts>
+         <trust file=".*-sources[.]jar" regex="true" reason="IDEが表示用に取得するのみでビルドでは実行されない"/>
+         <trust file=".*-javadoc[.]jar" regex="true" reason="IDEが表示用に取得するのみでビルドでは実行されない"/>
+         <trust file="gradle-[0-9.]+-src[.]zip" regex="true" reason="IDEがGradle API参照用に取得する配布物ソース。実行される配布物本体はwrapperのSHA-256で検証済み"/>
+      </trusted-artifacts>
    </configuration>
    <components>
       <component group="androidx.activity" name="activity" version="1.12.4">
