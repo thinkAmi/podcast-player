@@ -12,6 +12,19 @@ interface FeedDao {
     @Query("SELECT * FROM feeds ORDER BY title COLLATE NOCASE ASC")
     fun observeAll(): Flow<List<FeedEntity>>
 
+    /**
+     * 購読一覧画面用。各番組に未聴数(played=0 の全件数。保存フィルター非依存)を添えて流す。
+     *
+     * 未聴数の意味は ListeningRules.countUnplayed と同一でなければならない(等価計装テストで 機械検証する)。episodes
+     * テーブルの変更でも再発火するため、視聴済み操作が即座に一覧へ反映される。
+     */
+    @Query(
+        "SELECT feeds.*, COUNT(episodes.id) AS unplayedCount FROM feeds " +
+            "LEFT JOIN episodes ON episodes.feedId = feeds.id AND episodes.played = 0 " +
+            "GROUP BY feeds.id ORDER BY title COLLATE NOCASE ASC"
+    )
+    fun observeAllWithUnplayedCount(): Flow<List<FeedWithUnplayedCount>>
+
     @Query("SELECT * FROM feeds WHERE id = :feedId")
     fun observeById(feedId: Long): Flow<FeedEntity?>
 
