@@ -154,6 +154,7 @@ dependencies {
 
     testImplementation(libs.junit)
     testImplementation(libs.coroutines.test)
+    testImplementation(libs.kotest.property)
 
     androidTestImplementation(platform(libs.compose.bom))
     androidTestImplementation(libs.junit)

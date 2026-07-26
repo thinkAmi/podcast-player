@@ -23,6 +23,7 @@ junit = "4.13.2"
 androidxTestJunit = "1.3.0"
 androidxTestRunner = "1.7.0"
 espresso = "3.7.0"
+kotest = "6.2.3"
 
 [libraries]
 compose-bom = { group = "androidx.compose", name = "compose-bom", version.ref = "composeBom" }
@@ -57,6 +58,10 @@ androidx-test-runner = { group = "androidx.test", name = "runner", version.ref =
 espresso-core = { group = "androidx.test.espresso", name = "espresso-core", version.ref = "espresso" }
 compose-ui-test-junit4 = { group = "androidx.compose.ui", name = "ui-test-junit4" }
 compose-ui-test-manifest = { group = "androidx.compose.ui", name = "ui-test-manifest" }
+
+# プロパティベーステスト。kotest はこの property モジュールのみ採用する(テスト限定)。
+# assertions / framework(Spec スタイル)は採用しない。詳細は CLAUDE.md「テストの書き方」。
+kotest-property = { group = "io.kotest", name = "kotest-property", version.ref = "kotest" }
 
 # ktfmt はGradleプラグイン(Plugin Portal限定)ではなくCLI jarを直接使う。
 # リポジトリを google()/mavenCentral() に限定する方針を崩さないため。

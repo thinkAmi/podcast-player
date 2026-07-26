@@ -17,6 +17,9 @@ object RssInterpretation {
     private const val DURATION_PARTS_MMSS = 2
     private const val DURATION_PARTS_HHMMSS = 3
 
+    /** ミリ秒に換算しても Long に収まる合計秒数の上限。超える値は「長さ不明」として捨てる。 */
+    private const val MAX_DURATION_SECONDS = Long.MAX_VALUE / MILLIS_PER_SECOND
+
     /**
      * pubDate の解釈。RSS 2.0 は RFC 822 を要求するが、実際には亜種が流通している。 RFC_1123_DATE_TIME
      * は曜日と秒が最初からオプショナルで、月名・曜日名も ロケール非依存(英語固定)のため、「曜日なし」「秒なし」の亜種もこれ1つで解釈できる。 ofPattern
@@ -53,25 +56,39 @@ object RssInterpretation {
         val parts = text.split(":").map { it.trim() }
         val seconds =
             when (parts.size) {
-                1 -> parts[0].toLongOrNull()
+                1 -> componentOrNull(parts[0], MAX_DURATION_SECONDS)
                 DURATION_PARTS_MMSS -> combine(minutes = parts[0], seconds = parts[1])
                 DURATION_PARTS_HHMMSS ->
                     combine(hours = parts[0], minutes = parts[1], seconds = parts[2])
                 else -> null
             }
-        return seconds?.takeIf { it > 0L }?.times(MILLIS_PER_SECOND)
+        return seconds?.takeIf { it in 1L..MAX_DURATION_SECONDS }?.times(MILLIS_PER_SECOND)
     }
 
     private fun combine(hours: String = "0", minutes: String, seconds: String): Long? {
-        val h = hours.toLongOrNull()
-        val m = minutes.toLongOrNull()
-        val s = seconds.toLongOrNull()
+        // 各成分を先に上限で切っておけば、合計は高々 3 * MAX_DURATION_SECONDS で
+        // Long の範囲に収まり、加算そのものは溢れない。合計の上限検査は呼び出し側で行う。
+        val h = componentOrNull(hours, MAX_DURATION_SECONDS / SECONDS_PER_HOUR)
+        val m = componentOrNull(minutes, MAX_DURATION_SECONDS / SECONDS_PER_MINUTE)
+        val s = componentOrNull(seconds, MAX_DURATION_SECONDS)
         return if (h == null || m == null || s == null) {
             null
         } else {
             h * SECONDS_PER_HOUR + m * SECONDS_PER_MINUTE + s
         }
     }
+
+    /**
+     * 時分秒の1成分の解釈。数字のみ(負号・小数点なし)かつ [max] 以下だけを受理する。 toLongOrNull は "-5" や "+5"
+     * を受理してしまうため、負成分の混入("10:-5" が595秒に なる類)はここで防ぐ。
+     */
+    private fun componentOrNull(text: String, max: Long): Long? =
+        text
+            .takeIf { it.isNotEmpty() && it.all(Char::isDigit) }
+            ?.toLongOrNull()
+            ?.takeIf {
+                it <= max
+            }
 
     fun parseSizeBytes(raw: String?): Long? = raw?.trim()?.toLongOrNull()?.takeIf { it > 0L }
 

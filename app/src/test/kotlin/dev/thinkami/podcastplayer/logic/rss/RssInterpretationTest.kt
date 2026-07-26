@@ -82,6 +82,34 @@ class RssInterpretationTest {
     }
 
     @Test
+    fun `負の成分を含む長さは null`() {
+        assertNull(RssInterpretation.parseDurationMs("10:-5"))
+        assertNull(RssInterpretation.parseDurationMs("-1:02:05"))
+        assertNull(RssInterpretation.parseDurationMs("+5"))
+    }
+
+    @Test
+    fun `ミリ秒換算で Long を超える長さは null`() {
+        val maxSeconds = Long.MAX_VALUE / 1_000L
+        assertEquals(maxSeconds * 1_000L, RssInterpretation.parseDurationMs("$maxSeconds"))
+        assertNull(RssInterpretation.parseDurationMs("${maxSeconds + 1L}"))
+        assertNull(RssInterpretation.parseDurationMs("${Long.MAX_VALUE}"))
+    }
+
+    @Test
+    fun `不正な長さのitemは長さ不明として取り込む`() {
+        val normalized = RssInterpretation.normalize(item(itunesDuration = "10:-5"))
+        assertNotNull(normalized)
+        assertNull(normalized?.durationMs)
+    }
+
+    @Test
+    fun `分が59を超える分秒表記は受理する`() {
+        // "MM:SS" の分超過("99:10" など)は実フィードに存在するため受理を維持する
+        assertEquals(5_950_000L, RssInterpretation.parseDurationMs("99:10"))
+    }
+
+    @Test
     fun `サイズは正の整数のみ受け付ける`() {
         assertEquals(1_024L, RssInterpretation.parseSizeBytes("1024"))
         assertNull(RssInterpretation.parseSizeBytes("0"))
