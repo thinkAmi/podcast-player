@@ -40,6 +40,12 @@ class RssInterpretationTest {
     }
 
     @Test
+    fun `曜日も秒もない日付も解釈する`() {
+        val expected = ZonedDateTime.parse("2026-07-19T09:00:00+09:00").toInstant().toEpochMilli()
+        assertEquals(expected, RssInterpretation.parsePublishedAt("19 Jul 2026 09:00 +0900"))
+    }
+
+    @Test
     fun `ISO 8601 の日付も解釈する`() {
         val expected = ZonedDateTime.parse("2026-07-19T09:00:00+09:00").toInstant().toEpochMilli()
         assertEquals(expected, RssInterpretation.parsePublishedAt("2026-07-19T09:00:00+09:00"))
