@@ -28,6 +28,15 @@
             </intent-filter>
         </activity>
 
+        <!--
+          PC から購読を登録するための受け口。exported="false" により、届くのは同一 uid
+          (= run-as を使える adb)からの broadcast だけになる。端末内の他アプリからは
+          OS が配達を拒否する。この属性を変更してはならない。
+        -->
+        <receiver
+            android:name=".AdbFeedReceiver"
+            android:exported="false" />
+
         <service
             android:name=".player.PlaybackService"
             android:exported="false"

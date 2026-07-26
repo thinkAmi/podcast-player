@@ -101,6 +101,11 @@ detekt の baseline は使わない。違反は抑制せず直すこと。
 - ローカルの Android Studio(`~/Applications/Android Studio.app`)。DevContainer は使わない
 - 実機へは USB 直接インストール。エミュレータは使わない
 - Gradle は wrapper 経由(`./gradlew`)。ラッパーは配布物の SHA-256 を検証する設定
+- **PC からの購読登録は `./scripts/add-feed.sh <RSS の URL>`**(AI からは `add-podcast-feed`
+  スキル経由)。`exported="false"` の `AdbFeedReceiver` を `run-as` で叩くだけで、転送機能を
+  アプリに足しているわけではない。信頼境界は計装テストと同じ「USB デバッグを許可した PC」で、
+  debuggable ビルドでのみ成立する。`adb shell am broadcast` を直接組み立てないこと
+  (契約とクォート処理はスクリプトが持つ)
 
 ## 実機のデータを消さないために(重要)
 
