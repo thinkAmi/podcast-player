@@ -38,6 +38,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import dev.thinkami.podcastplayer.data.download.DownloadState
 import dev.thinkami.podcastplayer.logic.model.Episode
 import dev.thinkami.podcastplayer.logic.model.EpisodeFilter
+import dev.thinkami.podcastplayer.player.PlaybackStatus
 import dev.thinkami.podcastplayer.ui.UndoablePlayedChange
 import kotlinx.coroutines.withTimeoutOrNull
 
@@ -52,6 +53,7 @@ fun EpisodeListScreen(
     val feed by viewModel.feed.collectAsStateWithLifecycle()
     val episodes by viewModel.episodes.collectAsStateWithLifecycle()
     val downloadStates by viewModel.downloadStates.collectAsStateWithLifecycle()
+    val playbackStatus by viewModel.playbackStatus.collectAsStateWithLifecycle()
     val isRefreshing by viewModel.isRefreshing.collectAsStateWithLifecycle()
     val pendingUndo by viewModel.pendingUndo.collectAsStateWithLifecycle()
     val confirmation by viewModel.downloadConfirmation.collectAsStateWithLifecycle()
@@ -65,20 +67,12 @@ fun EpisodeListScreen(
     Scaffold(
         modifier = modifier,
         topBar = {
-            TopAppBar(
-                title = { Text(feed?.title.orEmpty(), maxLines = 1) },
-                navigationIcon = {
-                    IconButton(onClick = onBack) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "戻る")
-                    }
-                },
-                actions = {
-                    FeedMenu(
-                        onMarkAllPlayed = { viewModel.markAllPlayed(true) },
-                        onMarkAllUnplayed = { viewModel.markAllPlayed(false) },
-                        onUnsubscribe = { showUnsubscribeConfirm = true },
-                    )
-                },
+            EpisodeListTopBar(
+                title = feed?.title.orEmpty(),
+                onBack = onBack,
+                onMarkAllPlayed = { viewModel.markAllPlayed(true) },
+                onMarkAllUnplayed = { viewModel.markAllPlayed(false) },
+                onUnsubscribe = { showUnsubscribeConfirm = true },
             )
         },
         snackbarHost = { SnackbarHost(snackbarHostState) },
@@ -92,6 +86,7 @@ fun EpisodeListScreen(
                 filter = feed?.filter ?: EpisodeFilter.NONE,
                 episodes = episodes,
                 downloadStates = downloadStates,
+                playbackStatus = playbackStatus,
                 viewModel = viewModel,
                 onOpenDetail = onOpenDetail,
             )
@@ -109,6 +104,32 @@ fun EpisodeListScreen(
         onDismissUnsubscribe = { showUnsubscribeConfirm = false },
         downloadConfirmation = confirmation,
         viewModel = viewModel,
+    )
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun EpisodeListTopBar(
+    title: String,
+    onBack: () -> Unit,
+    onMarkAllPlayed: () -> Unit,
+    onMarkAllUnplayed: () -> Unit,
+    onUnsubscribe: () -> Unit,
+) {
+    TopAppBar(
+        title = { Text(title, maxLines = 1) },
+        navigationIcon = {
+            IconButton(onClick = onBack) {
+                Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "戻る")
+            }
+        },
+        actions = {
+            FeedMenu(
+                onMarkAllPlayed = onMarkAllPlayed,
+                onMarkAllUnplayed = onMarkAllUnplayed,
+                onUnsubscribe = onUnsubscribe,
+            )
+        },
     )
 }
 
@@ -146,6 +167,7 @@ private fun EpisodeList(
     filter: EpisodeFilter,
     episodes: List<Episode>,
     downloadStates: Map<Long, DownloadState>,
+    playbackStatus: PlaybackStatus,
     viewModel: EpisodeListViewModel,
     onOpenDetail: (Long) -> Unit,
 ) {
@@ -165,6 +187,8 @@ private fun EpisodeList(
                 onDownload = { viewModel.requestDownload(episode) },
                 onTogglePlayed = { viewModel.togglePlayed(episode) },
                 onOpenDetail = { onOpenDetail(episode.id) },
+                isCurrent = episode.id == playbackStatus.episodeId,
+                isPlaying = playbackStatus.isPlaying,
             )
         }
     }
