@@ -86,6 +86,15 @@ detekt の baseline は使わない。違反は抑制せず直すこと。
   `XmlPullParser` は JVM ユニットテストでは動かないので注意
 - 計装テストの Room は `inMemoryDatabaseBuilder` を使う。実 DB ファイルを作らない
 - `ui/` `player/` のカバレッジ数値は追わない。薄いグルーコードに保ち、スモークテストで足りる
+- **kotest は property モジュールのみ**(`kotest-property`、テスト限定依存)。プロパティテストは
+  入力空間が列挙できないロジック(パーサー・順序決定など)に限って使い、テスト自体は JUnit4 の
+  まま書く(`runBlocking { checkAll(...) }`)。kotest の assertions / framework(Spec スタイル)は
+  採用しない。ベンダー信頼(Google / JetBrains のみ)の意図的な例外であり、無断で広げないこと
+- 状態空間が全列挙できる検証(例: フィルター条件の SQL ↔ `logic/` 等価性)はランダム生成でなく
+  全数列挙で書く
+- テスト依存を追加・更新したら `./gradlew --write-verification-metadata sha256
+  :app:testInstrumentedUnitTest` で `gradle/verification-metadata.xml` を再生成する
+  (依存の SHA-256 検証が有効なため、これを忘れるとビルドが落ちる)
 
 ## 開発環境
 
