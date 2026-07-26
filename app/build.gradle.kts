@@ -90,6 +90,13 @@ android {
         compose = true
     }
 
+    testOptions {
+        // ユニットテストのJVMを実機(Pixel 7 Pro)と同じ ja-JP ロケールで起動する。
+        // ビルドマシンのロケール任せにすると、ロケール依存のバグ(英語月名の日付解釈など)を
+        // JVMテストで検出できない。
+        unitTests.all { it.jvmArgs("-Duser.language=ja", "-Duser.country=JP") }
+    }
+
     lint {
         warningsAsErrors = true
         abortOnError = true

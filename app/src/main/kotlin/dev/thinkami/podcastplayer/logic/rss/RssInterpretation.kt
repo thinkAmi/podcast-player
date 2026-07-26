@@ -17,14 +17,15 @@ object RssInterpretation {
     private const val DURATION_PARTS_MMSS = 2
     private const val DURATION_PARTS_HHMMSS = 3
 
-    /** pubDate の解釈。RSS 2.0 は RFC 822 を要求するが、実際には亜種が流通しているため 複数の書式を順に試す。どれにも当てはまらなければ null。 */
+    /**
+     * pubDate の解釈。RSS 2.0 は RFC 822 を要求するが、実際には亜種が流通している。 RFC_1123_DATE_TIME
+     * は曜日と秒が最初からオプショナルで、月名・曜日名も ロケール非依存(英語固定)のため、「曜日なし」「秒なし」の亜種もこれ1つで解釈できる。 ofPattern
+     * による自前のフォールバックを足さないこと(ロケール依存になる上、 RFC_1123_DATE_TIME が解釈できる書式の部分集合にしかならない)。 どれにも当てはまらなければ
+     * null。
+     */
     private val dateFormatters: List<DateTimeFormatter> =
         listOf(
             DateTimeFormatter.RFC_1123_DATE_TIME,
-            // 曜日なし: "19 Jul 2026 09:00:00 +0900"
-            DateTimeFormatter.ofPattern("d MMM yyyy HH:mm:ss Z"),
-            // 秒なし: "Sun, 19 Jul 2026 09:00 +0900"
-            DateTimeFormatter.ofPattern("EEE, d MMM yyyy HH:mm Z"),
             // ISO 8601 を使うフィードもある
             DateTimeFormatter.ISO_OFFSET_DATE_TIME,
         )
