@@ -97,6 +97,13 @@ class RssInterpretationTest {
     }
 
     @Test
+    fun `不正な長さのitemは長さ不明として取り込む`() {
+        val normalized = RssInterpretation.normalize(item(itunesDuration = "10:-5"))
+        assertNotNull(normalized)
+        assertNull(normalized?.durationMs)
+    }
+
+    @Test
     fun `分が59を超える分秒表記は受理する`() {
         // "MM:SS" の分超過("99:10" など)は実フィードに存在するため受理を維持する
         assertEquals(5_950_000L, RssInterpretation.parseDurationMs("99:10"))
