@@ -42,3 +42,8 @@
 ## ライセンス
 
 [MIT](LICENSE)
+
+
+## 関係ブログ
+
+- [自分のAndroidスマホ向けに、ポッドキャストプレイヤーを作ってみた - メモ的な思考的な](https://thinkami.hatenablog.com/entry/2026/07/26/210311)
