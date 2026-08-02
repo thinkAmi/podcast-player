@@ -26,7 +26,9 @@ import androidx.compose.material3.Slider
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
@@ -40,6 +42,20 @@ import dev.thinkami.podcastplayer.ui.showNotesToPlainText
 fun PlayerScreen(viewModel: PlayerViewModel, onBack: () -> Unit, modifier: Modifier = Modifier) {
     val status by viewModel.status.collectAsStateWithLifecycle()
     val episode by viewModel.currentEpisode.collectAsStateWithLifecycle()
+
+    // キューを聴き終えるとプレイヤーは空になる(episodeId が null)。通知・ミニプレイヤーと同じく
+    // この画面も追随して閉じる。「null なら閉じる」ではなく非null からの遷移で判定するのは、
+    // controller 再接続中の初期状態(回転・プロセス復元)をキュー終端と誤認しないため。
+    // プロセス死からの復元時に既にキューが尽きていた場合だけは遷移を観測できず空画面が一度
+    // 表示されるが、稀なケースのために接続済みフラグを増やさない(閉じるボタンで抜けられる)。
+    LaunchedEffect(Unit) {
+        var previousEpisodeId: Long? = null
+        snapshotFlow { status.episodeId }
+            .collect { episodeId ->
+                if (previousEpisodeId != null && episodeId == null) onBack()
+                previousEpisodeId = episodeId
+            }
+    }
 
     Scaffold(
         modifier = modifier,
