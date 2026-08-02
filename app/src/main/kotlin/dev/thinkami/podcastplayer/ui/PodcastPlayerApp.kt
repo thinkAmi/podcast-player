@@ -135,7 +135,16 @@ private fun AppNavHost(
         }
 
         composable(Routes.PLAYER) {
-            PlayerScreen(viewModel = playerViewModel, onBack = { navController.popBackStack() })
+            PlayerScreen(
+                viewModel = playerViewModel,
+                onBack = {
+                    // 閉じるボタンとキュー終端の自動クローズが競合しても pop は一度だけに
+                    // する(退場アニメーション中の二度目の呼び出しで一覧まで閉じない)。
+                    if (navController.currentDestination?.route == Routes.PLAYER) {
+                        navController.popBackStack()
+                    }
+                },
+            )
         }
     }
 }

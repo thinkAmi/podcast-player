@@ -99,19 +99,19 @@ class PlaybackConnection(private val context: Context) {
     }
 
     private fun publishStatus() {
-        val player = controller
+        // 切断中(回転などによる release → connect の谷間)は最後の状態を保持し、何も流さない。
+        // ここで空の status を流すと、UI の定期更新経由で episodeId=null が「キュー終端」と
+        // 区別できなくなり、開いていたプレイヤー画面が誤って閉じる。episodeId=null が流れるのは
+        // 接続済みプレイヤーのキューが空のときだけ、という不変条件を保つ。
+        val player = controller ?: return
         mutableStatus.value =
-            if (player == null) {
-                PlaybackStatus()
-            } else {
-                PlaybackStatus(
-                    episodeId = player.currentMediaItem?.mediaId?.toLongOrNull(),
-                    isPlaying = player.isPlaying,
-                    positionMs = player.currentPosition.coerceAtLeast(0L),
-                    durationMs = player.duration.coerceAtLeast(0L),
-                    speed = player.playbackParameters.speed,
-                )
-            }
+            PlaybackStatus(
+                episodeId = player.currentMediaItem?.mediaId?.toLongOrNull(),
+                isPlaying = player.isPlaying,
+                positionMs = player.currentPosition.coerceAtLeast(0L),
+                durationMs = player.duration.coerceAtLeast(0L),
+                speed = player.playbackParameters.speed,
+            )
     }
 
     private inner class StatusListener : Player.Listener {
