@@ -7,36 +7,6 @@ import org.junit.Test
 
 class ListeningRulesTest {
 
-    private val duration = 3_600_000L
-
-    @Test
-    fun `残り閾値ちょうどまで再生したら完了とみなす`() {
-        val position = duration - ListeningRules.COMPLETION_THRESHOLD_MS
-        assertTrue(ListeningRules.isPlaybackComplete(position, duration))
-    }
-
-    @Test
-    fun `残りが閾値より多ければ完了とみなさない`() {
-        val position = duration - ListeningRules.COMPLETION_THRESHOLD_MS - 1L
-        assertFalse(ListeningRules.isPlaybackComplete(position, duration))
-    }
-
-    @Test
-    fun `末尾まで再生したら完了とみなす`() {
-        assertTrue(ListeningRules.isPlaybackComplete(duration, duration))
-    }
-
-    @Test
-    fun `長さが不明なら自動判定しない`() {
-        assertFalse(ListeningRules.isPlaybackComplete(duration, null))
-    }
-
-    @Test
-    fun `長さが0以下なら自動判定しない`() {
-        assertFalse(ListeningRules.isPlaybackComplete(0L, 0L))
-        assertFalse(ListeningRules.isPlaybackComplete(0L, -1L))
-    }
-
     @Test
     fun `視聴済みでDL済みなら削除対象`() {
         assertTrue(ListeningRules.shouldDeleteDownload(episode(played = true, downloaded = true)))

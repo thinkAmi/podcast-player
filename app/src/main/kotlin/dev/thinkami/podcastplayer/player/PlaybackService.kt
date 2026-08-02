@@ -1,7 +1,6 @@
 package dev.thinkami.podcastplayer.player
 
 import androidx.media3.common.AudioAttributes
-import androidx.media3.common.C
 import androidx.media3.common.MediaItem
 import androidx.media3.common.Player
 import androidx.media3.exoplayer.ExoPlayer
@@ -9,7 +8,6 @@ import androidx.media3.session.MediaSession
 import androidx.media3.session.MediaSessionService
 import dev.thinkami.podcastplayer.appContainer
 import dev.thinkami.podcastplayer.data.EpisodeRepository
-import dev.thinkami.podcastplayer.logic.ListeningRules
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
@@ -20,8 +18,11 @@ import kotlinx.coroutines.launch
 /**
  * バックグラウンド再生の器。
  *
- * 通知・ロック画面の操作、Bluetoothのボタン、着信時の一時停止(オーディオフォーカス)は Media3 が面倒を見る。ここが自前で持つのは「再生位置をDBに書き戻す」ことと
- * 「聴き終わったエピソードを視聴済みにする」ことだけ。
+ * 通知・ロック画面の操作、Bluetoothのボタン、着信時の一時停止(オーディオフォーカス)は Media3 が面倒を見る。ここが自前で持つのは「再生位置をDBに書き戻す」
+ * 「聴き終わったエピソードを視聴済みにする」「キューが尽きたらプレイヤーを空に戻す」の3つだけ。
+ *
+ * 「聴き終わった」の判断は位置の計算ではなくプレイヤーのイベント(自動遷移・再生終了)で行う。 実際に鳴り終わったときにしか発火しないため、そのファイルはもう掴まれておらず、削除を遅らせる
+ * 必要がない。
  *
  * 再生順(未DLをスキップして次へ)はプレイリストとして事前に組み立てて渡される。 このサービスが自分でダウンロードを始めることは絶対にない。
  */
@@ -35,10 +36,12 @@ class PlaybackService : MediaSessionService() {
      */
     private val serviceScope = CoroutineScope(SupervisorJob() + Dispatchers.Main)
 
-    /** 視聴済みにしたが、まだ再生中でファイルを消せていないエピソード。 */
-    private val pendingDeletion = mutableSetOf<Long>()
-
-    /** いま鳴っているエピソード。曲が変わった瞬間に「前のもの」を知るために保持する。 */
+    /**
+     * いま鳴っているエピソード。曲が変わった瞬間に「前のもの」を知るために保持する。
+     *
+     * 書き手は [PlaybackListener.onMediaItemTransition] ただ1つ。切り替えは再生開始・自動遷移・
+     * シーク・キューのクリアのいずれでも必ずそこを通るため、他所から補正する必要がない。
+     */
     private var currentEpisodeId: Long? = null
 
     private val episodeRepository: EpisodeRepository
@@ -82,10 +85,9 @@ class PlaybackService : MediaSessionService() {
     }
 
     /**
-     * 再生位置を定期的に保存し、残り時間が閾値を切ったら視聴済みにする。
+     * 再生位置を定期的に保存する。
      *
-     * 「最後まで再生したか」をファイルの終端ではなく位置で判断するため、エンディングの途中で 止めても視聴済みになる。判断そのものは logic 層の [ListeningRules]
-     * が持つ。
+     * 位置には「変わった瞬間」の通知がない(再生中は連続的に進む)ため、ここだけはポーリングで 覗きに行くしかない。逆に「聴き終わったか」はイベントで分かるので、この経路では判断しない。
      */
     private fun startPositionTracking(player: Player) {
         serviceScope.launch {
@@ -100,20 +102,7 @@ class PlaybackService : MediaSessionService() {
 
     private suspend fun persistProgress(player: Player) {
         val episodeId = player.currentMediaItem?.mediaId?.toLongOrNull() ?: return
-        currentEpisodeId = episodeId
-        val position = player.currentPosition
-        val duration = player.duration.takeIf { it != C.TIME_UNSET }
-
-        episodeRepository.savePosition(episodeId, position)
-
-        if (
-            ListeningRules.isPlaybackComplete(position, duration) && episodeId !in pendingDeletion
-        ) {
-            // 視聴済みにするのは即座に(フィルターに反映させるため)。
-            // ファイル削除は再生中のファイルを掴んだまま消さないよう、この曲から離れてから行う。
-            episodeRepository.setPlayed(episodeId, played = true)
-            pendingDeletion += episodeId
-        }
+        episodeRepository.savePosition(episodeId, player.currentPosition)
     }
 
     private inner class PlaybackListener : Player.Listener {
@@ -126,31 +115,29 @@ class PlaybackService : MediaSessionService() {
             if (reason == Player.MEDIA_ITEM_TRANSITION_REASON_AUTO && previous != null) {
                 completeAndDelete(previous)
             }
-            // 別のエピソードへ移ったので、聴き終わったぶんのファイルを消してよい。
-            flushPendingDeletion(exceptMediaId = currentEpisodeId)
         }
 
         override fun onPlaybackStateChanged(playbackState: Int) {
-            if (playbackState == Player.STATE_ENDED) {
-                // 末尾まで鳴り切った。ここを取りこぼすと「最後まで聴いたのに視聴済みにならない」
-                // が起きる(位置のポーリングだけでは、終了直前の1秒を捉えられないことがある)。
-                currentEpisodeId?.let { completeAndDelete(it) }
-                flushPendingDeletion(exceptMediaId = null)
+            if (playbackState != Player.STATE_ENDED) return
+
+            // キューの最後まで鳴り切った。
+            val finished = currentEpisodeId
+            if (finished != null) {
+                completeAndDelete(finished)
+            }
+            // 聴き終わったらプレイヤーを空に戻す。currentMediaItem が null になることで、
+            // 通知もミニプレイヤーも消え、行のアイコンはDL済みかどうかだけで決まる状態に戻る。
+            // ファイル削除は上でコルーチンに預けてあるため、この停止より後に走る。
+            mediaSession?.player?.run {
+                stop()
+                clearMediaItems()
             }
         }
     }
 
     /** 聴き終わったことが確定した。視聴済みにし、条件を満たせばファイルを消す。 */
     private fun completeAndDelete(episodeId: Long) {
-        pendingDeletion -= episodeId
         serviceScope.launch { episodeRepository.markPlaybackCompleted(episodeId) }
-    }
-
-    private fun flushPendingDeletion(exceptMediaId: Long?) {
-        val targets = pendingDeletion.filterNot { it == exceptMediaId }
-        if (targets.isEmpty()) return
-        pendingDeletion.removeAll(targets.toSet())
-        serviceScope.launch { episodeRepository.deleteDownloadsIfEligible(targets) }
     }
 
     private companion object {
