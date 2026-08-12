@@ -121,7 +121,31 @@ detekt の baseline は使わない。違反は抑制せず直すこと。
   この設定を削除・変更してはならない
 - テストが異常終了して `.instrumented` が端末に残ったら
   `adb uninstall dev.thinkami.podcastplayer.instrumented` で消す(本番アプリには影響しない)
-- **本番パッケージへの破壊コマンドは deny 済み** — `.claude/settings.json` が
-  `adb uninstall` / `pm clear` / `gradlew uninstallDebug` 等の本番パッケージ向け実行を
-  機械的に拒否する。拒否されたら回避策を探さず、その操作が本当に必要か利用者に確認する
 - 消えても復旧は数分(URL を登録し直して「すべて視聴済み」を押す)。この軽さは維持する
+
+### 防御の構造(どれが主で、どれが飾りか)
+
+主防御は **`.claude/settings.json` の完全固定 allowlist** と、**そこに無いコマンドが必ず利用者への
+プロンプトに落ちること**。破壊的コマンドを検知して止めているのではなく、**破壊経路を自動承認に
+一つも載せていない**という構造で守っている。したがって:
+
+- **allowlist にワイルドカードを足さないこと。** 特に `./gradlew ... *` の形は、Gradle が末尾トークンを
+  追加タスクとして実行するため `./gradlew check uninstallDebug` が自動承認される穴になる
+- **deny リストは飾りに近い。** Gradle は `uD` の 2 文字でも `:app:uninstallDebug` に解決し、
+  `adb` は PATH に無いためフルパス起動になる。どちらも文字列一致の deny をすり抜ける。
+  deny は「見慣れた形を早めに弾く」二重化にすぎず、これに依存してはならない
+- **`guard-device.sh`(PreToolUse フック)は補助**。adb / run-as の device-side 破壊だけを見る。
+  exit 2 のみがブロックで、内部エラー・スクリプト不在・実行権限なしは**素通りする(fail-open)**。
+  変数経由や生成スクリプト経由の間接化も捕捉できない。フックを唯一の防壁にしてはならない
+- **`.claude/**` と `scripts/**` は Edit deny**。Claude 自身が防御を緩められないようにしてある。
+  `Edit(path)` ルールは Bash の `rm` / `touch` にも及ぶ(`Write(path)` ルールは**参照されない**ので
+  書いても無意味)。設定を変えるのは利用者の手で行う
+
+拒否された・フックに止められたら、**回避策を探さず**、その操作が本当に必要か利用者に確認する。
+
+### フックの回帰テスト
+
+判定の退行は全数列挙テストで検出する。手動実行は `./.claude/hooks/guard-device.test.sh`、
+コミット時は `.githooks/pre-commit` が自動実行する(有効化はクローン直後に一度だけ
+`git config core.hooksPath .githooks`)。既知バイパス(クォート回避・`cmd package` 抜け・
+複数出現・device-side インジェクション)がケースとして並んでいるので、判定を触ったら必ず走らせる。
