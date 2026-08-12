@@ -1,0 +1,53 @@
+## 1. 実機/実測での事前検証(実装前に実施)
+
+- [ ] 1.1 `.claude/settings.json` を `rm` した後、設定リロードが後続ツール呼び出し前に同期反映され、
+        acceptEdits が外れて後続 Write がプロンプトになるか確認する(design D4 の自己defeating の成否)
+- [ ] 1.2 PreToolUse フックがスクリプト内部エラー(exit 1 / 構文破損 / スクリプト不在)のとき
+        fail-open か fail-closed かを実測し、fail-closed 前提で書けるか、ラッパで担保する必要があるか判断する
+- [ ] 1.3 `./gradlew uninstallDeb`(camelCase 省略)の曖昧解決の実挙動を確認する(参考情報。allowlist 固定化で
+        実害は消えているが挙動理解のため)
+- [ ] 1.4 上記の結果を design.md の Open Questions に追記して確定させる
+
+## 2. フック本体と回帰テスト
+
+- [ ] 2.1 `.claude/hooks/guard-device.sh` を作成。判定を純関数的シェル関数に分離し、トークナイズ+
+        空白/クォート正規化+本番パッケージ名(`.instrumented` を除く)の全出現走査を実装する
+- [ ] 2.2 破壊動詞集合(`uninstall` / `clear` / `disable(-user)?` / `cmd package (clear|uninstall)` /
+        `suspend`)とパッケージ名の共起で exit 2 する判定を実装する(`pm` と `cmd package` 双方を包含)
+- [ ] 2.3 `run-as <本番パッケージ>` 後続のホワイトリスト(cat/ls のみ許可、他は exit 2)を、クォート・
+        二重空白・変数展開後・複数出現を正規化して実装する
+- [ ] 2.4 内部エラー時に exit 2(fail-closed)へ倒す(1.2 の結果に応じてラッパ方式も検討)
+- [ ] 2.5 `.claude/hooks/guard-device.test.sh` を作成。既知バイパスを全数列挙した回帰ケースを用意する
+        (クォート回避 C-3 / `cmd package` 抜け H-2 / 複数出現 M-1 / dumpsys device-side インジェクション /
+        `adb -s <serial>` / 正常な読み取り系が誤ブロックされないこと)
+- [ ] 2.6 回帰テストが全ケース通ることを確認し、git の pre-commit で実行されるよう配線する
+
+## 3. settings.json の差し替え
+
+- [ ] 3.1 `permissions.defaultMode` を `acceptEdits`、`disableBypassPermissionsMode` と
+        `disableAutoMode` を `"disable"` に設定する
+- [ ] 3.2 allow を完全固定で列挙する(`./gradlew` 系は末尾ワイルドカードなし。check / ktfmtFormat /
+        installDebug / connectedAndroidTest / write-verification-metadata の固定形、adb devices /
+        pm list packages / instrumented uninstall、dumpsys `*` / logcat `*`、git 読み取り/add/commit)
+- [ ] 3.3 ask に `git push *` と `gh *` を設定する
+- [ ] 3.4 deny に `Edit/Write(./.claude/**)`・`Edit/Write(./scripts/**)`、既存 8 本、
+        `adb shell cmd package *` を設定する
+- [ ] 3.5 hooks.PreToolUse に `guard-device.sh` を `matcher: "Bash"`、`$CLAUDE_PROJECT_DIR` 相対で配線する
+- [ ] 3.6 settings.json が有効な JSON で、Claude Code に読み込まれることを確認する
+
+## 4. ドキュメント改訂
+
+- [ ] 4.1 CLAUDE.md「実機のデータを消さないために」節を改訂し、主防御は allowlist とプロンプトであること、
+        deny は表記ゆれに弱くフックは補助であること、フックは間接化に無力であることを明記する
+- [ ] 4.2 CLAUDE.md にフック回帰テストの実行方法(pre-commit / 手動)を一行記載する
+- [ ] 4.3 敵対的ケース向けの任意オプション(chflags immutable + chflags/chmod deny)を、採用可能な
+        バックログとして tasks もしくは CLAUDE.md に残す
+
+## 5. 動作確認
+
+- [ ] 5.1 allow 済みコマンド(`./gradlew check` 等)が無確認で走ることを確認する
+- [ ] 5.2 未登録の破壊的コマンド(`./gradlew uninstallDebug` / `:app:uninstallDebug`)がプロンプトに
+        落ちることを確認する
+- [ ] 5.3 `.claude/**` / `scripts/**` の Edit/Write がブロックされることを確認する
+- [ ] 5.4 フックが既知の破壊形(`adb -s <serial> uninstall <本番>`・クォート付き `pm clear`・
+        `cmd package clear`・`run-as <本番> rm ...`)を exit 2 でブロックすることを実機で確認する
