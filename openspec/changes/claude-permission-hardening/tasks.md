@@ -14,18 +14,18 @@
 
 ## 2. フック本体と回帰テスト
 
-- [ ] 2.1 `.claude/hooks/guard-device.sh` を作成。判定を純関数的シェル関数に分離し、トークナイズ+
+- [x] 2.1 `.claude/hooks/guard-device.sh` を作成。判定を純関数的シェル関数に分離し、トークナイズ+
         空白/クォート正規化+本番パッケージ名(`.instrumented` を除く)の全出現走査を実装する
-- [ ] 2.2 破壊動詞集合(`uninstall` / `clear` / `disable(-user)?` / `cmd package (clear|uninstall)` /
+- [x] 2.2 破壊動詞集合(`uninstall` / `clear` / `disable(-user)?` / `cmd package (clear|uninstall)` /
         `suspend`)とパッケージ名の共起で exit 2 する判定を実装する(`pm` と `cmd package` 双方を包含)
-- [ ] 2.3 `run-as <本番パッケージ>` 後続のホワイトリスト(cat/ls のみ許可、他は exit 2)を、クォート・
+- [x] 2.3 `run-as <本番パッケージ>` 後続のホワイトリスト(cat/ls のみ許可、他は exit 2)を、クォート・
         二重空白・変数展開後・複数出現を正規化して実装する
-- [ ] 2.4 スクリプト**内部**の判定分岐・想定外入力・パース失敗時に exit 2 へ倒す(V2 により外部要因=
+- [x] 2.4 スクリプト**内部**の判定分岐・想定外入力・パース失敗時に exit 2 へ倒す(V2 により外部要因=
         スクリプト不在/実行不可は原理的に fail-open。内部のみ fail-closed にする)
-- [ ] 2.5 `.claude/hooks/guard-device.test.sh` を作成。既知バイパスを全数列挙した回帰ケースを用意する
+- [x] 2.5 `.claude/hooks/guard-device.test.sh` を作成。既知バイパスを全数列挙した回帰ケースを用意する
         (クォート回避 C-3 / `cmd package` 抜け H-2 / 複数出現 M-1 / dumpsys device-side インジェクション /
         `adb -s <serial>` / 正常な読み取り系が誤ブロックされないこと)
-- [ ] 2.6 回帰テストが全ケース通ることを確認し、git の pre-commit で実行されるよう配線する
+- [x] 2.6 回帰テストが全ケース通ることを確認し、git の pre-commit で実行されるよう配線する
 
 ## 3. settings.json の差し替え
 
