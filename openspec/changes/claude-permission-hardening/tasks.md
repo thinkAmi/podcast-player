@@ -1,12 +1,16 @@
 ## 1. 実機/実測での事前検証(実装前に実施)
 
-- [ ] 1.1 `.claude/settings.json` を `rm` した後、設定リロードが後続ツール呼び出し前に同期反映され、
+- [x] 1.1 `.claude/settings.json` を `rm` した後、設定リロードが後続ツール呼び出し前に同期反映され、
         acceptEdits が外れて後続 Write がプロンプトになるか確認する(design D4 の自己defeating の成否)
-- [ ] 1.2 PreToolUse フックがスクリプト内部エラー(exit 1 / 構文破損 / スクリプト不在)のとき
+        → **V1: 作成・削除とも同期的。D4 支持**(settings.local.json で実測)
+- [x] 1.2 PreToolUse フックがスクリプト内部エラー(exit 1 / 構文破損 / スクリプト不在)のとき
         fail-open か fail-closed かを実測し、fail-closed 前提で書けるか、ラッパで担保する必要があるか判断する
-- [ ] 1.3 `./gradlew uninstallDeb`(camelCase 省略)の曖昧解決の実挙動を確認する(参考情報。allowlist 固定化で
+        → **V2: fail-OPEN。exit 2 のみブロック。スクリプト不在も素通り**(公式ドキュメントで確定)
+- [x] 1.3 `./gradlew uninstallDeb`(camelCase 省略)の曖昧解決の実挙動を確認する(参考情報。allowlist 固定化で
         実害は消えているが挙動理解のため)
-- [ ] 1.4 上記の結果を design.md の Open Questions に追記して確定させる
+        → **V3: `uninstallDeb` / `:app:uninstallDebug` / `uD` すべて解決。D1/D2 を強く支持**
+- [x] 1.4 上記の結果を design.md の Open Questions に追記して確定させる
+        → design.md に「検証結果(実測)」節として V1〜V4 を記載。V4 は V2 から派生した設計変更
 
 ## 2. フック本体と回帰テスト
 
@@ -16,7 +20,8 @@
         `suspend`)とパッケージ名の共起で exit 2 する判定を実装する(`pm` と `cmd package` 双方を包含)
 - [ ] 2.3 `run-as <本番パッケージ>` 後続のホワイトリスト(cat/ls のみ許可、他は exit 2)を、クォート・
         二重空白・変数展開後・複数出現を正規化して実装する
-- [ ] 2.4 内部エラー時に exit 2(fail-closed)へ倒す(1.2 の結果に応じてラッパ方式も検討)
+- [ ] 2.4 スクリプト**内部**の判定分岐・想定外入力・パース失敗時に exit 2 へ倒す(V2 により外部要因=
+        スクリプト不在/実行不可は原理的に fail-open。内部のみ fail-closed にする)
 - [ ] 2.5 `.claude/hooks/guard-device.test.sh` を作成。既知バイパスを全数列挙した回帰ケースを用意する
         (クォート回避 C-3 / `cmd package` 抜け H-2 / 複数出現 M-1 / dumpsys device-side インジェクション /
         `adb -s <serial>` / 正常な読み取り系が誤ブロックされないこと)
@@ -28,7 +33,9 @@
         `disableAutoMode` を `"disable"` に設定する
 - [ ] 3.2 allow を完全固定で列挙する(`./gradlew` 系は末尾ワイルドカードなし。check / ktfmtFormat /
         installDebug / connectedAndroidTest / write-verification-metadata の固定形、adb devices /
-        pm list packages / instrumented uninstall、dumpsys `*` / logcat `*`、git 読み取り/add/commit)
+        pm list packages / instrumented uninstall、git 読み取り/add/commit)。
+        **V4 により `adb shell dumpsys *` と `adb logcat *` のワイルドカードは allow に入れない**
+        (フックを唯一の防壁にしないため。必要時はプロンプト経由で実行する)
 - [ ] 3.3 ask に `git push *` と `gh *` を設定する
 - [ ] 3.4 deny に `Edit/Write(./.claude/**)`・`Edit/Write(./scripts/**)`、既存 8 本、
         `adb shell cmd package *` を設定する

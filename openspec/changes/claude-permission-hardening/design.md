@@ -86,8 +86,12 @@ chflags immutable による OS レベルロック → 編集運用コストと�
 
 **選択**: `guard-device.sh` は Gradle を見ない(D2 で解決済み)。adb/run-as だけを、トークナイズ+
 空白/クォート正規化+パッケージ名の全出現走査+破壊動詞集合(`pm`/`cmd package` 両対応)で判定。
-`run-as` 後続は cat/ls のホワイトリスト。内部エラー時 exit 2。既知バイパスを全数列挙したシェル
-回帰テストを同梱し pre-commit で実行。
+`run-as` 後続は cat/ls のホワイトリスト。既知バイパスを全数列挙したシェル回帰テストを同梱し pre-commit で実行。
+
+**fail-open の受容(V2 の結果を反映)**: PreToolUse は `exit 2` 以外の非ゼロもスクリプト不在も
+non-blocking で素通りするため、フックを fail-closed にできるのは**内部判定分岐の中だけ**である。
+スクリプトが消えれば無言で素通りする。したがってフックは**いかなる箇所でも唯一の防壁にしてはならない**
+(V4)。フックは allowlist とプロンプトで既に守られた領域の二次的な取りこぼし検知に限定する。
 
 **理由**: v1 はフックに Gradle と adb を両方背負わせて破綻した。範囲を絞れば堅く書ける。判定を純関数的
 シェル関数にし全数列挙テストを当てるのは、本プロジェクトの「判断は純粋関数、状態空間が全列挙できる検証は
@@ -95,9 +99,10 @@ chflags immutable による OS レベルロック → 編集運用コストと�
 
 ## Risks / Trade-offs
 
-- [フックスクリプトを `rm` される] → settings 本体と違い、消えると `adb shell dumpsys *` 経由の
-  device-side インジェクション backstop が失われる(他は allowlist/プロンプトが効くので影響なし)。
-  緩和: フック自身が `.claude/` や自パスへの Bash 経由破壊を検知して exit 2、git 即復元、二次的 backstop の位置づけ。
+- [フックスクリプトを `rm` される] → V2 により、消えたフックは**無言で素通り**することが確定した
+  (fail-open)。かつ `acceptEdits` は作業ディレクトリ内の `rm` を自動承認するため削除自体にプロンプトは出ない。
+  「フック自身が検知する」緩和は削除後には機能しないため放棄する。緩和は V4 のとおり構造で行う:
+  フックを唯一の防壁にしない(allowlist からワイルドカードを外す)。加えて git で即復元できる。
 - [敵対的な `rm`→`Write` 再作成で settings を permissive 化] → 脅威モデル外。塞ぎたい場合は
   防御ファイルへ `chflags uchg`(immutable)+ `Bash(chflags *)`/`Bash(chmod *)` を deny する任意オプション。
 - [フックが間接化に無力] → 設計上の限界。allowlist/プロンプトに委ねる。CLAUDE.md にフックは補助と明記。
@@ -116,8 +121,56 @@ chflags immutable による OS レベルロック → 編集運用コストと�
 
 ロールバック: `.claude/settings.json` を旧版(deny 8 本のみ)に git revert すれば従来動作に戻る。
 
+## 検証結果(実測・2026-08-12)
+
+実装前に tasks.md グループ 1 として実施した検証の結果。design の前提を 1 つ覆したため D5 と Risks を改訂した。
+
+### V1: 設定ファイルのリロードは作成・削除とも同期的(D4 を支持)
+
+`.claude/settings.local.json` に `deny: ["Bash(echo RELOADPROBE *)"]` を置くと**次のツール呼び出しで即座に**
+拒否され、`rm` した直後の呼び出しでは**即座に**実行できた。よって設定の削除は次のツール呼び出しから反映される。
+`.claude/settings.json` を削除すれば `defaultMode: acceptEdits` も同時に失われて `default` に戻るため、
+「敵対的な rm → permissive な Write で再作成」は後続 Write がプロンプトになり自己defeating、という D4 の
+想定は支持された。
+
+### V2: PreToolUse フックは fail-OPEN(設計前提を覆す / H-3 を確定)
+
+公式ドキュメント(code.claude.com/docs/en/hooks)より:
+
+- `exit 2` **だけ**がブロックする。JSON の `permissionDecision: "allow"` でも上書きできない
+- `exit 1` を含む**その他の非ゼロは non-blocking error 扱いで、アクションは続行する**
+- **スクリプトが存在しない/実行権限がない場合(exit 127 等)も non-blocking で続行する**
+- `exit 0` かつ無出力は「決定なし」であり、承認ではない。通常の権限フロー(allowlist/プロンプト)へ進む
+
+したがって「フックを fail-closed にする」は**スクリプト内部の判定分岐についてのみ達成可能**で、
+スクリプトの削除・破損・実行不可といった外部要因に対しては**原理的に達成できない**。当初 tasks 2.4 に
+書いた「内部エラー時 exit 2 へ倒す」は内部エラーに限定した目標へ縮小する。
+
+### V3: Gradle のタスク名省略は極めて強力(C-2 を確定、D2 を強く支持)
+
+`--dry-run`(かつ端末未接続)で安全に実測した結果、以下がすべて `:app:uninstallDebug` に解決された:
+
+| 入力 | 解決先 |
+|---|---|
+| `./gradlew uninstallDeb` | `:app:uninstallDebug` |
+| `./gradlew :app:uninstallDebug` | `:app:uninstallDebug` |
+| `./gradlew uD` | `:app:uninstallDebug` |
+
+**2 文字の `uD` でも解決する。** 文字列ベースの deny で Gradle の破壊タスクを封じるのは原理的に不可能であり、
+D1/D2(allowlist 姿勢・完全固定)の正しさが実証された。
+
+### V4: V2 から派生した設計変更 — フックを load-bearing にしない
+
+V2 により「フックスクリプトを `rm` されると**無言で素通りする**」ことが確定した。しかも `acceptEdits` は
+作業ディレクトリ内の `rm` を自動承認するため、`rm .claude/hooks/guard-device.sh` はプロンプトなしで通る。
+当初 Risks に書いた緩和策「フック自身が `.claude/` への破壊を検知して exit 2」は、**削除されたスクリプトは
+何も検知できない**ため成立しない。
+
+したがってフックが唯一の防壁になっている箇所を無くす。具体的には allowlist から
+`adb shell dumpsys *` と `adb logcat *` のワイルドカードを外し、フックの役割を
+「allowlist とプロンプトで既に守られている領域の、二次的な取りこぼし検知」に純化する。
+これによりフックが消えても防御水準は allowlist とプロンプトのまま維持される。
+
 ## Open Questions
 
-- 設定ファイル `rm` 後のリロードは、後続ツール呼び出し前に同期的に反映されるか(D4 の自己defeating の成否)
-- PreToolUse がスクリプト内部エラー(exit 1/構文破損/不在)で fail-open か fail-closed か
-- フックの複数出現・クォート内出現の正規化を、どのシェル機能で最も堅く実装するか(回帰テストで確定)
+- フックの複数出現・クォート内出現の正規化を、どのシェル機能で最も堅く実装するか(回帰テストで確定する)
