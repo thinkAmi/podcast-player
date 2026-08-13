@@ -31,6 +31,8 @@
 
 - [x] 3.1 `permissions.defaultMode` を `acceptEdits`、`disableBypassPermissionsMode` と
         `disableAutoMode` を `"disable"` に設定する
+        → **V9 により `disableAutoMode` は後に削除**(auto は利用者の opt-in で選択可能)。
+        `disableBypassPermissionsMode` は維持
 - [x] 3.2 allow を完全固定で列挙する(`./gradlew` 系は末尾ワイルドカードなし。check / ktfmtFormat /
         installDebug / connectedAndroidTest / write-verification-metadata の固定形、adb devices /
         pm list packages / instrumented uninstall、git 読み取り/add/commit)。
@@ -53,11 +55,10 @@
 
 ## 5. 動作確認
 
-- [ ] 5.1 allow 済みコマンド(`./gradlew check` 等)が無確認で走ることを確認する
-        → **ほぼ未完了のまま**。再検証(2026-08-13、acceptEdits セッション)では安全のため
-        `--dry-run` を付けたが、allow は完全一致のため `./gradlew check --dry-run` はマッチせず
-        ダイアログが出た(= 完全一致 allow の仕様どおり)。厳密な確認は **`--dry-run` なしの
-        `./gradlew check`**(非破壊なのでそのまま安全)でダイアログが出ないことを見る
+- [x] 5.1 allow 済みコマンド(`./gradlew check` 等)が無確認で走ることを確認する
+        → **完了(2026-08-13)**。`--dry-run` なしの `./gradlew check` を実行し、
+        **ダイアログが出ずに実行された**ことを利用者が観測。完全一致 allow が機能している。
+        なお `./gradlew check --dry-run` はダイアログが出た(完全一致なのでマッチしない。仕様どおり)
 - [x] 5.2 未登録の破壊的コマンド(`./gradlew uninstallDebug` / `:app:uninstallDebug`)がプロンプトに
         落ちることを確認する
         → **完了(2026-08-13、端末未接続 + --dry-run で再検証)**。`./gradlew uninstallDebug` は
@@ -107,6 +108,6 @@
         ガードを通過し「No connected devices」まで到達(= フラグ経路も機能)。
         (3) `./gradlew check` は影響なく通過(18s)
 - [ ] 7.4 実機のデータを復旧する(URL 再登録+「すべて視聴済み」。利用者の手作業)
-- [ ] 7.5 tasks 5.1 / 5.2 の検証手順に安全条件(端末未接続 + --dry-run)を明記した上で再検証する
-        → 5.2 は完了(2026-08-13)。残るは 5.1 のみ: 新しいセッションで `--dry-run` なしの
-        `./gradlew check` を実行し、ダイアログが出ないことを利用者が確認する(非破壊なので安全)
+- [x] 7.5 tasks 5.1 / 5.2 の検証手順に安全条件(端末未接続 + --dry-run)を明記した上で再検証する
+        → 完了。5.2 は端末未接続 + `--dry-run` で再検証済み。5.1 は非破壊のため `--dry-run` なしで
+        実施(破壊的コマンドの検証にのみ安全条件が要る、という区別を確認した)

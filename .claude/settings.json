@@ -18,6 +18,7 @@
       "Bash(git log *)",
       "Bash(git add *)",
       "Bash(git commit *)",
+      "Bash(openspec *)",
       "Edit(/openspec/**)"
     ],
     "ask": [

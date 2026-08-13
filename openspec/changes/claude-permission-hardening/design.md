@@ -60,7 +60,7 @@ Claude Code 公式ドキュメント(code.claude.com/docs)で確認済みの事�
 **代替案**: フックで Gradle 呼び出しをパースして許可タスク集合を検査 → D1 の姿勢なら不要。allowlist で
 完結する方が単純で堅い。
 
-### D3: モードは `acceptEdits`、`bypassPermissions`/`auto` を封印
+### D3: モードは `acceptEdits`、`bypassPermissions`/`auto` を封印(auto の封印は V9 で解除)
 
 **選択**: `defaultMode: "acceptEdits"` + `disableBypassPermissionsMode`/`disableAutoMode` を `"disable"`。
 
