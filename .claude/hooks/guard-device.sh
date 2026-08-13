@@ -50,6 +50,12 @@ fi
 # クォートだけを外すのは `run-as "pkg" rm` のような整形差で判定が破れるのを防ぐため。
 normalized=$(printf '%s' "$command_str" | tr -d '\042\047' | tr -s '[:space:]' ' ')
 
+# Claude 自身がガードの脱出ハッチを使うことを防ぐ(auto モード対策)。
+# -PallowUninstall は利用者が自分のターミナルで打つ専用で、Claude 経由の正当な用途は無い。
+case "$(printf '%s' "$normalized" | tr '[:upper:]' '[:lower:]')" in
+*allowuninstall*) block "allowUninstall フラグは Claude 経由では使用できません: ${command_str}" ;;
+esac
+
 # --- 計装テスト用パッケージを退避し、本番パッケージの出現だけを残す ---------
 # 全出現を置換するため `adb uninstall <pkg>.instrumented && adb uninstall <pkg>` のような
 # 複数出現でも後段の本番パッケージを取りこぼさない。

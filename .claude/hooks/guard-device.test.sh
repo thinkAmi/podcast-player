@@ -56,6 +56,8 @@ check 2 "run-as から sqlite3 で書き込み" "run-as $PKG sqlite3 databases/p
 check 2 "run-as の後続コマンドなし(対話シェル)" "run-as $PKG"
 check 2 "instrumented を先に置いて本番を後ろに隠す(M-1)" "adb uninstall $PKG.instrumented && adb uninstall $PKG"
 check 2 "dumpsys からの device-side インジェクション" "adb shell dumpsys package; pm clear $PKG"
+check 2 "ガードの脱出ハッチ(allowUninstall)" "./gradlew :app:uninstallDebug -PallowUninstall=true"
+check 2 "脱出ハッチの大文字小文字ゆれ" "./gradlew uninstallAll -PALLOWUNINSTALL=true"
 check 2 "改行区切りの複合コマンド" "adb devices
 adb uninstall $PKG"
 

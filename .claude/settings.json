@@ -2,7 +2,6 @@
   "permissions": {
     "defaultMode": "acceptEdits",
     "disableBypassPermissionsMode": "disable",
-    "disableAutoMode": "disable",
     "allow": [
       "Bash(./gradlew check)",
       "Bash(./gradlew ktfmtFormat)",
@@ -18,7 +17,8 @@
       "Bash(git diff *)",
       "Bash(git log *)",
       "Bash(git add *)",
-      "Bash(git commit *)"
+      "Bash(git commit *)",
+      "Edit(/openspec/**)"
     ],
     "ask": [
       "Bash(git push *)",
