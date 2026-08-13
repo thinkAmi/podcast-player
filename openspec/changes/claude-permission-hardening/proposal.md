@@ -11,8 +11,12 @@ Claude Code を自律的に(編集を自動承認する `acceptEdits` で)走ら
 
 - **BREAKING**(開発運用のみ。アプリのコードには影響しない): 権限の主防御を「破壊的コマンドを
   文字列で検知して deny する」方式から「破壊経路を一つも自動承認に載せない allowlist 姿勢」へ転換する。
-- `defaultMode: "acceptEdits"` を設定し、`disableBypassPermissionsMode` と `disableAutoMode` を
-  `"disable"` にしてプロンプトの出ないモードへの逃走を封じる。
+- `defaultMode: "acceptEdits"` を設定し、`disableBypassPermissionsMode` を `"disable"` にして
+  bypassPermissions を封じる(V9: `auto` の封印は利用者の判断で解除。分類器という判定層があること、
+  および deny/ask/フック/Gradle ガードがモード非依存であることが根拠)。
+- **破壊的な Gradle タスク(uninstall 系)をビルドスクリプト自身が拒否する**。明示フラグ
+  `-PallowUninstall=true` がある場合のみ実行できる。権限モード・プロンプト・フック・deny、
+  そして人間の注意力のいずれにも依存しない最終防衛線(V8 インシデントへの対策)。
 - allowlist を**完全固定**にする。`./gradlew` 系の末尾ワイルドカードを撤廃し、日常ループのコマンドを
   完全引数で列挙する。これにより破壊的 Gradle タスク(uninstall 系)はすべてプロンプトに落ちる。
 - `.claude/**` と `scripts/**` を Edit/Write の deny にし、防御ファイル自体の書き換えによる緩和を封じる。
@@ -28,7 +32,7 @@ Claude Code を自律的に(編集を自動承認する `acceptEdits` で)走ら
 ### New Capabilities
 - `agent-permissions`: Claude Code をこのリポジトリで自律的に走らせる際の権限境界。どのコマンドが
   無確認で自動実行され、どれがプロンプト/ブロックに落ちるか、実機の本番データをどう守るか、
-  防御ファイルの自己改変をどう防ぐかを定める。
+  防御ファイルの自己改変をどう防ぐか、そして人間の承認が破られたときに何が最後に止めるかを定める。
 
 ### Modified Capabilities
 <!-- なし。既存のプロダクト spec(playback 等)の要件は変わらない -->

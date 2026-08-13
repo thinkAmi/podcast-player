@@ -72,13 +72,15 @@
         (`~/Library/Android/sdk/platform-tools/adb uninstall <本番>`)もフックが捕捉**(V6)。
         読み取り系(`run-as <本番> cat ...`)は誤ブロックされないことも確認
 
-## 6. 採用しなかった選択肢(バックログ)
+## 6. 採用しなかった選択肢(この change では実施しない)
 
-- [ ] 6.1 敵対的ケース向けの `chflags uchg`(OS レベルの immutable)+ `Bash(chflags *)`/`Bash(chmod *)` の
-        deny。V5 により `rm`/`touch` は Edit deny で既に塞がっているため優先度は下がった。
-        間接実行(`find -delete`・python 等)まで塞ぎたくなったときに検討する
-- [ ] 6.2 OS サンドボックス(Seatbelt)の導入。adb は localhost:5037 への TCP のため主脅威の解にはならず、
-        ファイルシステムの爆発半径を縛る補強としてのみ有効
+この節はタスクではなく判断の記録。将来必要になったときの検討材料として残す。
+
+- 敵対的ケース向けの `chflags uchg`(OS レベルの immutable)+ `Bash(chflags *)`/`Bash(chmod *)` の
+  deny。V5 により `rm`/`touch` は Edit deny で既に塞がっているため優先度は下がった。
+  間接実行(`find -delete`・python 等)まで塞ぎたくなったときに検討する
+- OS サンドボックス(Seatbelt)の導入。adb は localhost:5037 への TCP のため主脅威の解にはならず、
+  ファイルシステムの爆発半径を縛る補強としてのみ有効
 
 ## 7. V8 インシデント対応(2026-08-13 の本番アプリ消失を受けて)
 
