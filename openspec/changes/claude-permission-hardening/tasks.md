@@ -58,8 +58,9 @@
         効かない。次回このリポジトリで Claude Code を起動したときに確認すること**
 - [ ] 5.2 未登録の破壊的コマンド(`./gradlew uninstallDebug` / `:app:uninstallDebug`)がプロンプトに
         落ちることを確認する
-        → `./gradlew uninstallDebug` は deny 発火を確認済み。`:app:uninstallDebug` が
-        **プロンプトへ落ちる**ことの確認は 5.1 と同じ理由で次回セッションに持ち越し
+        → `./gradlew uninstallDebug` は deny 発火を確認済み。`:app:uninstallDebug` は別セッションの
+        検証で**実行されてしまい、本番アプリがアンインストールされた(V8 インシデント)**。
+        再検証は 7.1 の機構特定と 7.2 の Gradle 側ガード実装後に、**端末未接続 + --dry-run** で行うこと
 - [x] 5.3 `.claude/**` / `scripts/**` の Edit/Write がブロックされることを確認する
         → Edit ツールでの自己改変が拒否されることを確認。さらに **Bash の `touch` / `rm` も
         ブロックされる**ことを実測(V5)。`find -delete` 等の間接実行は素通り(既知の限界)
@@ -76,3 +77,17 @@
         間接実行(`find -delete`・python 等)まで塞ぎたくなったときに検討する
 - [ ] 6.2 OS サンドボックス(Seatbelt)の導入。adb は localhost:5037 への TCP のため主脅威の解にはならず、
         ファイルシステムの爆発半径を縛る補強としてのみ有効
+
+## 7. V8 インシデント対応(2026-08-13 の本番アプリ消失を受けて)
+
+- [ ] 7.1 自動承認の機構を特定する。利用者に確認: (a) 当該セッションで確認ダイアログが出て承認したか、
+        (b) そのセッションの Desktop の権限モード表示。自動承認だった場合、disable 封印が効かなかった
+        機構を特定し、Claude Code のバグであれば報告する
+- [ ] 7.2 Gradle 側の実行時ガードを実装する。uninstall 系タスク(uninstallDebug / uninstallRelease /
+        uninstallAll / uninstallDebugAndroidTest 等)に doFirst でエラーを仕込み、明示フラグ
+        (例: -PallowUninstall=true)がある場合のみ実行を許す。省略形(uD 等)も同じタスクに解決される
+        ため、この層はモード・プロンプト・フック・deny のどれにも依存しない
+- [ ] 7.3 guard-device.test.sh 方式にならい、7.2 のガードが全 uninstall 系タスクを覆うことを
+        タスク名の列挙テストで確認する
+- [ ] 7.4 実機のデータを復旧する(URL 再登録+「すべて視聴済み」。利用者の手作業)
+- [ ] 7.5 tasks 5.1 / 5.2 の検証手順に安全条件(端末未接続 + --dry-run)を明記した上で再検証する
