@@ -54,13 +54,15 @@
 ## 5. 動作確認
 
 - [ ] 5.1 allow 済みコマンド(`./gradlew check` 等)が無確認で走ることを確認する
-        → **未完了。V7 のとおり `defaultMode` はセッション開始時の既定であり、実行中のセッションには
-        効かない。次回このリポジトリで Claude Code を起動したときに確認すること**
-- [ ] 5.2 未登録の破壊的コマンド(`./gradlew uninstallDebug` / `:app:uninstallDebug`)がプロンプトに
+        → **ほぼ未完了のまま**。再検証(2026-08-13、acceptEdits セッション)では安全のため
+        `--dry-run` を付けたが、allow は完全一致のため `./gradlew check --dry-run` はマッチせず
+        ダイアログが出た(= 完全一致 allow の仕様どおり)。厳密な確認は **`--dry-run` なしの
+        `./gradlew check`**(非破壊なのでそのまま安全)でダイアログが出ないことを見る
+- [x] 5.2 未登録の破壊的コマンド(`./gradlew uninstallDebug` / `:app:uninstallDebug`)がプロンプトに
         落ちることを確認する
-        → `./gradlew uninstallDebug` は deny 発火を確認済み。`:app:uninstallDebug` は別セッションの
-        検証で**実行されてしまい、本番アプリがアンインストールされた(V8 インシデント)**。
-        再検証は 7.1 の機構特定と 7.2 の Gradle 側ガード実装後に、**端末未接続 + --dry-run** で行うこと
+        → **完了(2026-08-13、端末未接続 + --dry-run で再検証)**。`./gradlew uninstallDebug` は
+        deny で Gradle 起動前にブロック。`:app:uninstallDebug` は**ダイアログが出た**(利用者が観測)。
+        設計どおり「未登録はプロンプトに落ちる」が成立している
 - [x] 5.3 `.claude/**` / `scripts/**` の Edit/Write がブロックされることを確認する
         → Edit ツールでの自己改変が拒否されることを確認。さらに **Bash の `touch` / `rm` も
         ブロックされる**ことを実測(V5)。`find -delete` 等の間接実行は素通り(既知の限界)
@@ -80,14 +82,29 @@
 
 ## 7. V8 インシデント対応(2026-08-13 の本番アプリ消失を受けて)
 
-- [ ] 7.1 自動承認の機構を特定する。利用者に確認: (a) 当該セッションで確認ダイアログが出て承認したか、
+- [x] 7.1 自動承認の機構を特定する。利用者に確認: (a) 当該セッションで確認ダイアログが出て承認したか、
         (b) そのセッションの Desktop の権限モード表示。自動承認だった場合、disable 封印が効かなかった
         機構を特定し、Claude Code のバグであれば報告する
-- [ ] 7.2 Gradle 側の実行時ガードを実装する。uninstall 系タスク(uninstallDebug / uninstallRelease /
+        → **確定: ダイアログは出ており、利用者が承認していた**。自動承認ではなく、権限システムは
+        設計どおり動作。Claude Code のバグではない。V8 の実態は「見慣れた形の破壊コマンドを
+        反射的に承認する」という人間側の事故であり、7.2 のガードはその防御として実装する
+- [x] 7.2 Gradle 側の実行時ガードを実装する。uninstall 系タスク(uninstallDebug / uninstallRelease /
         uninstallAll / uninstallDebugAndroidTest 等)に doFirst でエラーを仕込み、明示フラグ
         (例: -PallowUninstall=true)がある場合のみ実行を許す。省略形(uD 等)も同じタスクに解決される
         ため、この層はモード・プロンプト・フック・deny のどれにも依存しない
-- [ ] 7.3 guard-device.test.sh 方式にならい、7.2 のガードが全 uninstall 系タスクを覆うことを
+        → app/build.gradle.kts に実装。configuration cache 互換(Provider をローカル束縛して捕捉)。
+        位置づけは 7.1 の結論を受けて「人間の反射的承認への防御」
+- [x] 7.3 guard-device.test.sh 方式にならい、7.2 のガードが全 uninstall 系タスクを覆うことを
         タスク名の列挙テストで確認する
+        → 常設テストは置かず、以下で確認した(ガードは configureEach + startsWith のため
+        構造上すべての uninstall* タスクを覆う):
+        (1) `:app:tasks --all` の列挙で対象は 5 タスク(uninstallAll / Debug / Release /
+        Instrumented / InstrumentedAndroidTest)、全て uninstall 始まり。
+        (2) 実行プローブは未インストールの .instrumented 向けタスクで実施(万一ガードが
+        効かなくても無害)。フラグなし → ガードのエラーでブロック。-PallowUninstall=true →
+        ガードを通過し「No connected devices」まで到達(= フラグ経路も機能)。
+        (3) `./gradlew check` は影響なく通過(18s)
 - [ ] 7.4 実機のデータを復旧する(URL 再登録+「すべて視聴済み」。利用者の手作業)
 - [ ] 7.5 tasks 5.1 / 5.2 の検証手順に安全条件(端末未接続 + --dry-run)を明記した上で再検証する
+        → 5.2 は完了(2026-08-13)。残るは 5.1 のみ: 新しいセッションで `--dry-run` なしの
+        `./gradlew check` を実行し、ダイアログが出ないことを利用者が確認する(非破壊なので安全)
