@@ -41,6 +41,31 @@ val ktfmtCheck =
 
 tasks.named("check") { dependsOn(ktfmtCheck) }
 
+// uninstall 系タスクの実行時ガード。実端末の本番アプリ(普段使い中)を誤って
+// アンインストールした事故への対策で、この節を削除してはならない。
+// Gradle はタスク名の省略形を解決する(uD でも :app:uninstallDebug に到達する)ため、
+// コマンド文字列を見る防御(権限ルール・フック)では表記ゆれを塞ぎ切れない。
+// どの表記でも最終的に同じタスクに解決されることを逆手に取り、タスク自身を失敗させる。
+// 本当に必要なとき(通常は無い。掃除は adb uninstall <pkg>.instrumented で足りる)だけ
+// -PallowUninstall=true を付けて実行する。
+val allowUninstall = providers.gradleProperty("allowUninstall")
+
+tasks.configureEach {
+    if (name.startsWith("uninstall")) {
+        // スクリプトのプロパティを doFirst 内で直接参照するとスクリプトオブジェクトごと
+        // 捕捉され configuration cache と非互換になる。ローカルへ束縛してから渡す。
+        val allowed = allowUninstall
+        doFirst {
+            if (!allowed.isPresent) {
+                throw GradleException(
+                    "uninstall 系タスクはブロックされています(本番データ保護)。" +
+                        "本当に必要なら -PallowUninstall=true を付けて実行してください。"
+                )
+            }
+        }
+    }
+}
+
 kover {
     reports {
         // カバレッジの計測・ゲートとも logic 層(純粋ロジック)に限定する。

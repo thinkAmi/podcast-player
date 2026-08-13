@@ -1,14 +1,56 @@
 {
   "permissions": {
+    "defaultMode": "acceptEdits",
+    "disableBypassPermissionsMode": "disable",
+    "allow": [
+      "Bash(./gradlew check)",
+      "Bash(./gradlew ktfmtFormat)",
+      "Bash(./gradlew installDebug)",
+      "Bash(./gradlew connectedAndroidTest)",
+      "Bash(./gradlew --write-verification-metadata sha256 :app:testInstrumentedUnitTest)",
+      "Bash(adb devices)",
+      "Bash(adb shell pm list packages)",
+      "Bash(adb uninstall dev.thinkami.podcastplayer.instrumented)",
+      "Bash(./scripts/add-feed.sh *)",
+      "Bash(./.claude/hooks/guard-device.test.sh)",
+      "Bash(git status)",
+      "Bash(git diff *)",
+      "Bash(git log *)",
+      "Bash(git add *)",
+      "Bash(git commit *)",
+      "Bash(openspec *)",
+      "Edit(/openspec/**)"
+    ],
+    "ask": [
+      "Bash(git push *)",
+      "Bash(gh *)"
+    ],
     "deny": [
+      "Edit(/.claude/**)",
+      "Edit(/scripts/**)",
+      "Edit(/.githooks/**)",
       "Bash(adb uninstall dev.thinkami.podcastplayer)",
       "Bash(adb shell pm clear dev.thinkami.podcastplayer)",
+      "Bash(adb shell cmd package *)",
       "Bash(./gradlew uninstallDebug)",
       "Bash(./gradlew uninstallDebug *)",
       "Bash(./gradlew uninstallRelease)",
       "Bash(./gradlew uninstallRelease *)",
       "Bash(./gradlew uninstallAll)",
       "Bash(./gradlew uninstallAll *)"
+    ]
+  },
+  "hooks": {
+    "PreToolUse": [
+      {
+        "matcher": "Bash",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "\"$CLAUDE_PROJECT_DIR\"/.claude/hooks/guard-device.sh"
+          }
+        ]
+      }
     ]
   }
 }
