@@ -21,4 +21,10 @@ data class ParsedItem(
     val enclosureUrl: String?,
     val enclosureLength: String?,
     val itunesDuration: String?,
+    /**
+     * `<source url>` が申告する出典フィードのURL。RSS 2.0 の定義どおり「このitemの出所である フィード」を指す。
+     *
+     * 購読・更新の通常経路はこれを見ない。既存購読へのエピソード取り込みでのみ、取り込み先の 購読URLと突き合わせて誤注入を防ぐために使う。
+     */
+    val sourceUrl: String? = null,
 )

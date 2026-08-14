@@ -17,11 +17,14 @@ import org.junit.runner.RunWith
 class RssXmlReaderTest {
 
     private lateinit var xml: String
+    private lateinit var archiveXml: String
 
     @Before
     fun setUp() {
         val context = InstrumentationRegistry.getInstrumentation().context
         xml = context.assets.open("messy_feed.xml").use { it.readBytes().toString(Charsets.UTF_8) }
+        archiveXml =
+            context.assets.open("archive_feed.xml").use { it.readBytes().toString(Charsets.UTF_8) }
     }
 
     @Test
@@ -94,6 +97,44 @@ class RssXmlReaderTest {
 
         assertEquals(52_428_800L, normalized.getValue("ep-003").enclosureSizeBytes)
         assertNull(normalized.getValue("ep-001").enclosureSizeBytes)
+    }
+
+    @Test
+    fun sourceのurl属性を出典として取り出す() {
+        val parsed = RssXmlReader().read(archiveXml)
+
+        assertEquals(2, parsed.items.size)
+        assertTrue(parsed.items.all { it.sourceUrl == "https://example.test/feed.xml" })
+    }
+
+    @Test
+    fun sourceのないitemの出典はnullになる() {
+        val parsed = RssXmlReader().read(xml)
+
+        assertTrue(parsed.items.all { it.sourceUrl == null })
+    }
+
+    @Test
+    fun sourceが複数あるitemは最初のものを採用する() {
+        val twoSources =
+            """
+            <?xml version="1.0" encoding="UTF-8"?>
+            <rss version="2.0">
+              <channel>
+                <item>
+                  <title>出典が二重に書かれたitem</title>
+                  <enclosure url="https://example.test/ep.mp3" />
+                  <source url="https://example.test/first.xml">先に現れた出典</source>
+                  <source url="https://example.test/second.xml">後から現れた出典</source>
+                </item>
+              </channel>
+            </rss>
+            """
+                .trimIndent()
+
+        val parsed = RssXmlReader().read(twoSources)
+
+        assertEquals("https://example.test/first.xml", parsed.items.single().sourceUrl)
     }
 
     @Test

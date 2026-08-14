@@ -1,0 +1,34 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  既存購読へ取り込むためのアーカイブXMLのフィクスチャ。実際に生成されるものと同じ形にしてある。
+  ・全itemが <source url> で出典フィードを申告する(取り込み先の購読URLと突き合わせる)
+  ・channel の title は取り込み先の番組名と異なる(取り込みでフィードのメタデータを
+    上書きしないことの検証に使う)
+  ・enclosure は元の配信サーバーを指したまま(再ホストしない)
+-->
+<rss version="2.0">
+  <channel>
+    <title>テスト番組 過去回アーカイブ(非公式)</title>
+    <link>https://example.test/</link>
+    <description>公式フィードから押し出された過去回の非公式アーカイブ</description>
+    <item>
+      <title>第0回 最初の回</title>
+      <link>https://example.test/?p=10</link>
+      <guid isPermaLink="false">http://example.test/?p=10</guid>
+      <pubDate>Mon, 06 Jul 2026 09:00:00 +0900</pubDate>
+      <enclosure url="https://example.test/old000.mp3" length="1048576" type="audio/mpeg"/>
+      <description>元記事: https://example.test/?p=10</description>
+      <source url="https://example.test/feed.xml">テスト番組</source>
+    </item>
+    <item>
+      <title>【音源リンク切れ】第0.5回 音源が消えた回</title>
+      <link>https://example.test/?p=11</link>
+      <guid isPermaLink="false">http://example.test/?p=11</guid>
+      <pubDate>Tue, 07 Jul 2026 09:00:00 +0900</pubDate>
+      <enclosure url="https://example.test/old005.mp3" type="audio/mpeg"/>
+      <description>元記事: https://example.test/?p=11
+音源リンク切れを検出(2026-08-14T10:00:00+09:00 時点)</description>
+      <source url="https://example.test/feed.xml">テスト番組</source>
+    </item>
+  </channel>
+</rss>
