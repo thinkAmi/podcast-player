@@ -46,16 +46,20 @@ class RssXmlReader {
         val values = mutableMapOf<String, String>()
         var enclosureUrl: String? = null
         var enclosureLength: String? = null
+        var sourceUrl: String? = null
 
         var event = parser.next()
         while (!(event == XmlPullParser.END_TAG && parser.name == TAG_ITEM)) {
             if (event == XmlPullParser.END_DOCUMENT) break
             if (event == XmlPullParser.START_TAG) {
-                if (parser.name == TAG_ENCLOSURE) {
-                    enclosureUrl = parser.getAttributeValue(null, ATTR_URL)
-                    enclosureLength = parser.getAttributeValue(null, ATTR_LENGTH)
-                } else {
-                    readTextInto(parser, values)
+                when (parser.name) {
+                    TAG_ENCLOSURE -> {
+                        enclosureUrl = parser.getAttributeValue(null, ATTR_URL)
+                        enclosureLength = parser.getAttributeValue(null, ATTR_LENGTH)
+                    }
+                    // 要素本文(出典の番組名)は読まない。突き合わせに使うのは url 属性だけ。
+                    TAG_SOURCE -> sourceUrl = sourceUrl ?: parser.getAttributeValue(null, ATTR_URL)
+                    else -> readTextInto(parser, values)
                 }
             }
             event = parser.next()
@@ -70,6 +74,7 @@ class RssXmlReader {
             enclosureUrl = enclosureUrl,
             enclosureLength = enclosureLength,
             itunesDuration = values[TAG_ITUNES_DURATION],
+            sourceUrl = sourceUrl,
         )
     }
 
@@ -89,6 +94,7 @@ class RssXmlReader {
         const val TAG_CONTENT_ENCODED = "content:encoded"
         const val TAG_PUB_DATE = "pubDate"
         const val TAG_ENCLOSURE = "enclosure"
+        const val TAG_SOURCE = "source"
         const val TAG_ITUNES_DURATION = "itunes:duration"
         const val TAG_ITUNES_IMAGE = "itunes:image"
         const val TAG_URL = "url"

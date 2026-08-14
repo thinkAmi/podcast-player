@@ -15,6 +15,8 @@ import dev.thinkami.podcastplayer.logic.model.Episode
 import dev.thinkami.podcastplayer.logic.model.EpisodeFilter
 import dev.thinkami.podcastplayer.logic.model.Feed
 import dev.thinkami.podcastplayer.logic.model.SubscriptionListItem
+import dev.thinkami.podcastplayer.logic.rss.ImportSourceValidation
+import dev.thinkami.podcastplayer.logic.rss.ImportSourceVerdict
 import dev.thinkami.podcastplayer.logic.rss.NormalizedItem
 import dev.thinkami.podcastplayer.logic.rss.ParsedFeed
 import dev.thinkami.podcastplayer.logic.rss.RssInterpretation
@@ -100,6 +102,36 @@ class RoomFeedRepository(
         }
     }
 
+    /**
+     * 取り込みは購読済みの番組のエピソードだけを対象にする。
+     *
+     * `refresh()` を流用しないこと。あちらは channel のタイトルとアートワークをフィードへ書き戻すため、 アーカイブXMLの channel
+     * 情報(「〜過去回アーカイブ(非公式)」など)で本物の番組名を 上書きしてしまう。
+     */
+    override suspend fun importEpisodes(feedUrl: String, importUrl: String): ImportOutcome {
+        val normalizedUrl = feedUrl.trim()
+        val feed = feedDao.findByUrl(normalizedUrl) ?: throw NotSubscribedException(normalizedUrl)
+
+        val parsed = fetchAndParse(importUrl)
+        val verdict =
+            ImportSourceValidation.validate(parsed.items.map { it.sourceUrl }, feed.feedUrl)
+        rejectionMessage(verdict)?.let { throw ImportSourceRejectedException(it) }
+
+        val items = RssInterpretation.normalizeAll(parsed.items)
+        val added = storeEpisodes(feed.id, items)
+        return ImportOutcome(total = items.size, added = added)
+    }
+
+    private fun rejectionMessage(verdict: ImportSourceVerdict): String? =
+        when (verdict) {
+            ImportSourceVerdict.Allowed -> null
+            ImportSourceVerdict.Undeclared -> "出典を申告しているitemがありません(取り込み用のアーカイブではありません)"
+            is ImportSourceVerdict.Mixed ->
+                "itemごとに違う出典が申告されています: ${verdict.declaredUrls.joinToString()}"
+            is ImportSourceVerdict.Mismatched ->
+                "出典が取り込み先と一致しません(申告: ${verdict.declared} / 取り込み先: ${verdict.subscribed})"
+        }
+
     override suspend fun refreshAll(): List<FeedRefreshFailure> =
         // 1番組の失敗で他を止めない。成功したぶんだけ取り込み、失敗は呼び出し側へ返す。
         feedDao.findAll().mapNotNull { feed ->
@@ -131,12 +163,12 @@ class RoomFeedRepository(
     }
 
     /**
-     * 新規エピソードを取り込み、既知のものはメタデータだけ更新する。
+     * 新規エピソードを取り込み、既知のものはメタデータだけ更新する。戻り値は新規に追加された件数。
      *
      * 状態カラム(視聴済み・DL・再生位置)をフィードの再取得で上書きしないことが要点。
      */
-    private suspend fun storeEpisodes(feedId: Long, items: List<NormalizedItem>) {
-        episodeDao.insertIgnoringKnown(items.map { it.toEntity(feedId) })
+    private suspend fun storeEpisodes(feedId: Long, items: List<NormalizedItem>): Int {
+        val rowIds = episodeDao.insertIgnoringKnown(items.map { it.toEntity(feedId) })
         items.forEach { item ->
             episodeDao.updateMetadataByGuid(
                 feedId = feedId,
@@ -149,6 +181,8 @@ class RoomFeedRepository(
                 enclosureSizeBytes = item.enclosureSizeBytes,
             )
         }
+        // 既知だった行の rowId は -1 になる。挿入された分だけを新規として数える。
+        return rowIds.count { it != IGNORED_ROW_ID }
     }
 
     private suspend fun cacheArtwork(feedId: Long, artworkUrl: String?) {
@@ -159,5 +193,10 @@ class RoomFeedRepository(
         } catch (_: IOException) {
             // アートワークは無くても聴取に支障がないため、取得失敗は購読・更新を妨げない。
         }
+    }
+
+    private companion object {
+        /** Room の OnConflictStrategy.IGNORE が「挿入しなかった」ことを表す rowId。 */
+        const val IGNORED_ROW_ID = -1L
     }
 }

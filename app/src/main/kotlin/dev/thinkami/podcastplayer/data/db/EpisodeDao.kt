@@ -46,9 +46,11 @@ interface EpisodeDao {
      *
      * 既知の guid は無視する。視聴済み・DL状態・再生位置といった利用者の状態を、フィードの 再取得で上書きしてはならないため。メタデータの更新は
      * [updateMetadataByGuid] で別途行う。
+     *
+     * 戻り値は挿入された行の rowId で、無視された(既知だった)ものは -1 になる。新規が何件 だったかを呼び出し側へ伝えるために使う。
      */
     @Insert(onConflict = OnConflictStrategy.IGNORE)
-    suspend fun insertIgnoringKnown(episodes: List<EpisodeEntity>)
+    suspend fun insertIgnoringKnown(episodes: List<EpisodeEntity>): List<Long>
 
     /** 状態カラムには触れず、フィード由来のメタデータだけを更新する。 */
     @Query(

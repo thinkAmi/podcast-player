@@ -120,11 +120,68 @@ class AdbFeedReceiverTest {
         )
     }
 
+    @Test
+    fun 出典の一致するXMLを既存購読に取り込める() {
+        server.respondWith(FakeResponse.plainText(FEED_XML))
+        val feedUrl = server.url("/feed.xml")
+        broadcast(feedUrl)
+        server.respondWith(FakeResponse.plainText(archiveXml(feedUrl)))
+
+        val result = broadcast(feedUrl, importUrl = server.url("/archive.xml"))
+
+        assertEquals(result.data, AdbFeedReceiver.RESULT_IMPORTED, result.code)
+        val feeds = runBlocking { context.appContainer.feedRepository.observeFeeds().first() }
+        // 取り込みで番組が増えたり、番組名が上書きされたりしないこと。
+        assertEquals(1, feeds.size)
+        assertEquals("テスト番組", feeds.single().title)
+    }
+
+    @Test
+    fun 出典の一致しないXMLは取り込まれず理由が返る() {
+        server.respondWith(FakeResponse.plainText(FEED_XML))
+        val feedUrl = server.url("/feed.xml")
+        broadcast(feedUrl)
+        server.respondWith(FakeResponse.plainText(archiveXml("https://other.test/rss")))
+
+        val result = broadcast(feedUrl, importUrl = server.url("/archive.xml"))
+
+        assertEquals(AdbFeedReceiver.RESULT_FAILED, result.code)
+        assertNotNull(result.data)
+    }
+
+    @Test
+    fun 購読していないフィードへの取り込みは失敗する() {
+        server.respondWith(FakeResponse.plainText(archiveXml("https://unknown.test/feed.xml")))
+
+        val result =
+            broadcast("https://unknown.test/feed.xml", importUrl = server.url("/archive.xml"))
+
+        assertEquals(AdbFeedReceiver.RESULT_FAILED, result.code)
+        assertTrue(
+            runBlocking { context.appContainer.feedRepository.observeFeeds().first() }.isEmpty()
+        )
+    }
+
+    @Test
+    fun 空白だけのimport_urlは従来どおり購読登録として扱う() {
+        server.respondWith(FakeResponse.plainText(FEED_XML))
+        val feedUrl = server.url("/feed.xml")
+
+        val result = broadcast(feedUrl, importUrl = "   ")
+
+        assertEquals(result.data, AdbFeedReceiver.RESULT_SUBSCRIBED, result.code)
+        assertEquals(
+            1,
+            runBlocking { context.appContainer.feedRepository.observeFeeds().first() }.size,
+        )
+    }
+
     /** 実際に ordered broadcast を送り、Receiver が返した結果を受け取る。 */
-    private fun broadcast(feedUrl: String?): Result {
+    private fun broadcast(feedUrl: String?, importUrl: String? = null): Result {
         val intent =
             Intent(context, AdbFeedReceiver::class.java).apply {
                 feedUrl?.let { putExtra(AdbFeedReceiver.EXTRA_FEED_URL, it) }
+                importUrl?.let { putExtra(AdbFeedReceiver.EXTRA_IMPORT_URL, it) }
             }
         val latch = CountDownLatch(1)
         var code = UNSET
@@ -149,6 +206,25 @@ class AdbFeedReceiverTest {
     }
 
     private class Result(val code: Int, val data: String?)
+
+    /** 取り込み用アーカイブ。[sourceUrl] が出典として申告される。 */
+    private fun archiveXml(sourceUrl: String): String =
+        """
+        <?xml version="1.0" encoding="UTF-8"?>
+        <rss version="2.0">
+          <channel>
+            <title>テスト番組 過去回アーカイブ(非公式)</title>
+            <item>
+              <title>第0回</title>
+              <guid>old-1</guid>
+              <pubDate>Mon, 06 Feb 2017 09:00:00 +0900</pubDate>
+              <enclosure url="https://example.test/old1.mp3" length="1000" />
+              <source url="$sourceUrl">テスト番組</source>
+            </item>
+          </channel>
+        </rss>
+        """
+            .trimIndent()
 
     private companion object {
         const val UNSET = 0

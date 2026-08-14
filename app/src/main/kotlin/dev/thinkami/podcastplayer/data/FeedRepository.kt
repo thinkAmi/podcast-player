@@ -36,6 +36,15 @@ interface FeedRepository {
     /** 1番組を更新する。既知の guid の状態(視聴済み・DL・再生位置)は保持する。 */
     suspend fun refresh(feedId: Long)
 
+    /**
+     * 購読済みの番組に、別のXMLからエピソードだけを取り込む。
+     *
+     * 配信側がフィードに載せなくなった過去回を、あとから同じ番組に合流させるための操作。 取り込み元は記憶せず、以後の更新で再取得もしない(購読ではなく一度きりの注入)。
+     *
+     * 取り違えを防ぐため、XMLが `<source url>` で申告する出典と [feedUrl] の一致を要求する。 一致しなければ1件も取り込まない。
+     */
+    suspend fun importEpisodes(feedUrl: String, importUrl: String): ImportOutcome
+
     /** 全番組を更新する。1番組の失敗で他を止めず、失敗した番組を返す。 */
     suspend fun refreshAll(): List<FeedRefreshFailure>
 
@@ -46,6 +55,15 @@ interface FeedRepository {
 
 /** 更新に失敗した番組。全番組更新のあと、まとめて利用者に知らせるために使う。 */
 data class FeedRefreshFailure(val feedId: Long, val title: String, val cause: Exception)
+
+/** 取り込みの結果。総数と、そのうち新規に追加された件数。 */
+data class ImportOutcome(val total: Int, val added: Int)
+
+/** 購読していない番組へ取り込もうとしたことを表す。 */
+class NotSubscribedException(feedUrl: String) : IllegalStateException("購読していません: $feedUrl")
+
+/** 出典の申告が取り込み先と噛み合わず、取り込みを拒否したことを表す。 */
+class ImportSourceRejectedException(message: String) : IllegalArgumentException(message)
 
 /** 購読済みのURLを再登録しようとしたことを表す。 */
 class AlreadySubscribedException(feedUrl: String) : IllegalStateException("すでに購読しています: $feedUrl")
