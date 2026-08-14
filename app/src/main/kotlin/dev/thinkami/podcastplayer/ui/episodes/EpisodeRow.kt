@@ -139,7 +139,7 @@ private fun PlayedToggle(played: Boolean, onToggle: () -> Unit) {
     }
 }
 
-private val dateFormatter = DateTimeFormatter.ofPattern("M/d")
+private val dateFormatter = DateTimeFormatter.ofPattern("yyyy/MM/dd")
 
 private fun episodeSubtitle(episode: Episode, downloadState: DownloadState?): String {
     val parts = mutableListOf<String>()
