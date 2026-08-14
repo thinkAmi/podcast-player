@@ -12,9 +12,9 @@ import org.junit.Test
 import org.junit.runner.RunWith
 
 /**
- * 未聴数バッジのスモークテスト。
+ * 購読一覧の行のスモークテスト。
  *
- * 「0件ならバッジ自体を出さない」の判定は UI の if にしか現れないため、この層でのみ検証できる。
+ * 「0件ならバッジ自体を出さない」「アートワークが無ければ頭文字を出す」の分岐は UI の if にしか 現れないため、この層でのみ検証できる。
  */
 @RunWith(AndroidJUnit4::class)
 class FeedRowTest {
@@ -38,7 +38,9 @@ class FeedRowTest {
 
     @Test
     fun 未聴があれば数字がそのまま表示される() {
-        composeRule.setContent { FeedRow(item = item(unplayedCount = 347), onClick = {}) }
+        composeRule.setContent {
+            FeedRow(item = item(unplayedCount = 347), artwork = null, onClick = {})
+        }
 
         composeRule.onNodeWithText("347").assertIsDisplayed()
         composeRule.onNodeWithText("テスト番組").assertIsDisplayed()
@@ -46,9 +48,31 @@ class FeedRowTest {
 
     @Test
     fun 未聴0件ならバッジが存在しない() {
-        composeRule.setContent { FeedRow(item = item(unplayedCount = 0), onClick = {}) }
+        composeRule.setContent {
+            FeedRow(item = item(unplayedCount = 0), artwork = null, onClick = {})
+        }
 
         composeRule.onNodeWithText("テスト番組").assertIsDisplayed()
         composeRule.onNodeWithText("0").assertDoesNotExist()
+    }
+
+    /** アートワークを取得できない番組はふつうに存在する。エラーではなく頭文字のタイルに落ちる。 */
+    @Test
+    fun アートワークがなければ頭文字のタイルを出す() {
+        composeRule.setContent {
+            FeedRow(item = item(unplayedCount = 1), artwork = null, onClick = {})
+        }
+
+        composeRule.onNodeWithText("テ").assertIsDisplayed()
+    }
+
+    /** フィードURLは購読一覧には出さない(エピソード一覧の上部バーへ移してある)。 */
+    @Test
+    fun フィードURLは行に表示しない() {
+        composeRule.setContent {
+            FeedRow(item = item(unplayedCount = 1), artwork = null, onClick = {})
+        }
+
+        composeRule.onNodeWithText("https://example.test/feed.xml").assertDoesNotExist()
     }
 }

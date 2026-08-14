@@ -1,16 +1,21 @@
 package dev.thinkami.podcastplayer.ui.player
 
+import android.graphics.Bitmap
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import dev.thinkami.podcastplayer.data.EpisodeRepository
 import dev.thinkami.podcastplayer.data.FeedRepository
+import dev.thinkami.podcastplayer.data.artwork.ArtworkStore
 import dev.thinkami.podcastplayer.logic.model.Episode
+import dev.thinkami.podcastplayer.logic.model.Feed
 import dev.thinkami.podcastplayer.player.PlaybackConnection
 import dev.thinkami.podcastplayer.player.PlaybackStatus
+import dev.thinkami.podcastplayer.ui.ArtworkSizes
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.flow.map
@@ -25,6 +30,7 @@ class PlayerViewModel(
     private val playback: PlaybackConnection,
     private val feedRepository: FeedRepository,
     episodeRepository: EpisodeRepository,
+    artworkStore: ArtworkStore,
 ) : ViewModel() {
 
     val status: StateFlow<PlaybackStatus> = playback.status
@@ -36,6 +42,28 @@ class PlayerViewModel(
             .flatMapLatest { id ->
                 if (id == null) flowOf(null) else episodeRepository.observeEpisode(id)
             }
+            .stateIn(viewModelScope, SharingStarted.WhileSubscribed(STOP_TIMEOUT_MS), null)
+
+    /** 再生中エピソードが属する番組。アートワークと、画像が無いときのモノグラムの元になる。 */
+    val currentFeed: StateFlow<Feed?> =
+        currentEpisode
+            .map { it?.feedId }
+            .distinctUntilChanged()
+            .flatMapLatest { feedId ->
+                if (feedId == null) flowOf(null) else feedRepository.observeFeed(feedId)
+            }
+            .stateIn(viewModelScope, SharingStarted.WhileSubscribed(STOP_TIMEOUT_MS), null)
+
+    /**
+     * 番組のアートワーク。
+     *
+     * アートワークはエピソードではなく番組の属性なので、エピソードが次に進んでも同じ画像を使う。 パスが変わらないかぎり読み直さない。
+     */
+    val artwork: StateFlow<Bitmap?> =
+        currentFeed
+            .map { it?.artworkLocalPath }
+            .distinctUntilChanged()
+            .map { path -> artworkStore.load(path, ArtworkSizes.PLAYER_TARGET_PX) }
             .stateIn(viewModelScope, SharingStarted.WhileSubscribed(STOP_TIMEOUT_MS), null)
 
     init {

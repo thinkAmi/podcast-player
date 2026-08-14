@@ -4,6 +4,7 @@ import android.graphics.Bitmap
 import android.graphics.BitmapFactory
 import dev.thinkami.podcastplayer.data.net.HttpFetcher
 import dev.thinkami.podcastplayer.data.storage.MediaFileStorage
+import dev.thinkami.podcastplayer.logic.ArtworkPresentation
 import java.io.File
 import java.io.IOException
 import kotlinx.coroutines.Dispatchers
@@ -47,10 +48,32 @@ class ArtworkStore(private val fetcher: HttpFetcher, private val storage: MediaF
             throw ArtworkUnavailableException(artworkUrl, e)
         }
 
-    /** キャッシュ済みの画像を読み込む。壊れていれば null。 */
-    suspend fun load(localPath: String?): Bitmap? =
+    /**
+     * キャッシュ済みの画像を表示用の大きさで読み込む。無い・壊れていれば null。
+     *
+     * 配信されるアートワークは 3000px 角も珍しくなく、原寸で展開すると1枚 36MB になる。 表示に必要なのは targetPx までなので、寸法だけ先に読んで縮小デコードする。
+     *
+     * null は異常ではなく通常の分岐(URL 未申告・取得失敗・キャッシュ破損)。呼び出し側は モノグラム表示へ落ちる。
+     */
+    suspend fun load(localPath: String?, targetPx: Int): Bitmap? =
         withContext(Dispatchers.IO) {
-            localPath?.let { path -> BitmapFactory.decodeFile(path) }
+            if (localPath == null) return@withContext null
+            val bounds =
+                BitmapFactory.Options()
+                    .apply { inJustDecodeBounds = true }
+                    .also { options ->
+                        BitmapFactory.decodeFile(localPath, options)
+                    }
+            val options =
+                BitmapFactory.Options().apply {
+                    inSampleSize =
+                        ArtworkPresentation.sampleSizeFor(
+                            sourceWidth = bounds.outWidth,
+                            sourceHeight = bounds.outHeight,
+                            targetPx = targetPx,
+                        )
+                }
+            BitmapFactory.decodeFile(localPath, options)
         }
 }
 

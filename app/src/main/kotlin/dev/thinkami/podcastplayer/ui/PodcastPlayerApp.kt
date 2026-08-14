@@ -52,7 +52,12 @@ fun PodcastPlayerApp(container: AppContainer, modifier: Modifier = Modifier) {
     }
 
     val playerViewModel: PlayerViewModel = viewModel {
-        PlayerViewModel(container.playback, container.feedRepository, container.episodeRepository)
+        PlayerViewModel(
+            playback = container.playback,
+            feedRepository = container.feedRepository,
+            episodeRepository = container.episodeRepository,
+            artworkStore = container.artworkStore,
+        )
     }
     val currentEpisode by playerViewModel.currentEpisode.collectAsStateWithLifecycle()
     val status by playerViewModel.status.collectAsStateWithLifecycle()
@@ -93,7 +98,7 @@ private fun AppNavHost(
     ) {
         composable(Routes.SUBSCRIPTIONS) {
             val vm: SubscriptionListViewModel = viewModel {
-                SubscriptionListViewModel(container.feedRepository)
+                SubscriptionListViewModel(container.feedRepository, container.artworkStore)
             }
             SubscriptionListScreen(
                 viewModel = vm,
@@ -114,6 +119,7 @@ private fun AppNavHost(
                     downloader = container.downloader,
                     networkState = container.networkState,
                     playback = container.playback,
+                    artworkStore = container.artworkStore,
                 )
             }
             EpisodeListScreen(

@@ -1,7 +1,9 @@
 package dev.thinkami.podcastplayer.ui.episodes
 
+import android.graphics.Bitmap
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
@@ -17,6 +19,7 @@ import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SnackbarDuration
 import androidx.compose.material3.SnackbarHost
@@ -32,6 +35,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -39,6 +43,8 @@ import dev.thinkami.podcastplayer.data.download.DownloadState
 import dev.thinkami.podcastplayer.logic.model.Episode
 import dev.thinkami.podcastplayer.logic.model.EpisodeFilter
 import dev.thinkami.podcastplayer.player.PlaybackStatus
+import dev.thinkami.podcastplayer.ui.ArtworkImage
+import dev.thinkami.podcastplayer.ui.ArtworkSizes
 import dev.thinkami.podcastplayer.ui.UndoablePlayedChange
 import kotlinx.coroutines.withTimeoutOrNull
 
@@ -51,6 +57,7 @@ fun EpisodeListScreen(
     modifier: Modifier = Modifier,
 ) {
     val feed by viewModel.feed.collectAsStateWithLifecycle()
+    val artwork by viewModel.artwork.collectAsStateWithLifecycle()
     val episodes by viewModel.episodes.collectAsStateWithLifecycle()
     val downloadStates by viewModel.downloadStates.collectAsStateWithLifecycle()
     val playbackStatus by viewModel.playbackStatus.collectAsStateWithLifecycle()
@@ -69,6 +76,8 @@ fun EpisodeListScreen(
         topBar = {
             EpisodeListTopBar(
                 title = feed?.title.orEmpty(),
+                feedUrl = feed?.feedUrl.orEmpty(),
+                artwork = artwork,
                 onBack = onBack,
                 onMarkAllPlayed = { viewModel.markAllPlayed(true) },
                 onMarkAllUnplayed = { viewModel.markAllPlayed(false) },
@@ -107,17 +116,43 @@ fun EpisodeListScreen(
     )
 }
 
+/**
+ * 上部バーに番組のアートワーク・番組名・フィードURLを出す。
+ *
+ * URL は購読一覧の行から移してきたもの。一覧では番組の見分けをアートワークが引き受けるため字数を 使わず、URL
+ * は「その番組の詳細な場所」であるこの画面に置く(取り込みスクリプトの引数にも使う)。
+ *
+ * アートワークはエピソード行ではなくここに1枚だけ置く。同じ番組の画面で全行に同じ画像を並べても 見分けの情報は増えず、行の左端は DL/再生の操作が使っている。
+ */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun EpisodeListTopBar(
     title: String,
+    feedUrl: String,
+    artwork: Bitmap?,
     onBack: () -> Unit,
     onMarkAllPlayed: () -> Unit,
     onMarkAllUnplayed: () -> Unit,
     onUnsubscribe: () -> Unit,
 ) {
     TopAppBar(
-        title = { Text(title, maxLines = 1) },
+        title = {
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(12.dp),
+            ) {
+                ArtworkImage(bitmap = artwork, title = title, size = ArtworkSizes.HEADER)
+                Column {
+                    Text(title, style = MaterialTheme.typography.titleMedium, maxLines = 1)
+                    Text(
+                        text = feedUrl,
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        maxLines = 1,
+                    )
+                }
+            }
+        },
         navigationIcon = {
             IconButton(onClick = onBack) {
                 Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "戻る")

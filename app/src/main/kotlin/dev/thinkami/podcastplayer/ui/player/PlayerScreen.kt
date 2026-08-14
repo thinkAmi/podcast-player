@@ -35,6 +35,8 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import dev.thinkami.podcastplayer.logic.model.Episode
 import dev.thinkami.podcastplayer.player.PlaybackStatus
+import dev.thinkami.podcastplayer.ui.ArtworkImage
+import dev.thinkami.podcastplayer.ui.ArtworkSizes
 import dev.thinkami.podcastplayer.ui.showNotesToPlainText
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -42,6 +44,8 @@ import dev.thinkami.podcastplayer.ui.showNotesToPlainText
 fun PlayerScreen(viewModel: PlayerViewModel, onBack: () -> Unit, modifier: Modifier = Modifier) {
     val status by viewModel.status.collectAsStateWithLifecycle()
     val episode by viewModel.currentEpisode.collectAsStateWithLifecycle()
+    val artwork by viewModel.artwork.collectAsStateWithLifecycle()
+    val feed by viewModel.currentFeed.collectAsStateWithLifecycle()
 
     // キューを聴き終えるとプレイヤーは空になる(episodeId が null)。通知・ミニプレイヤーと同じく
     // この画面も追随して閉じる。「null なら閉じる」ではなく非null からの遷移で判定するのは、
@@ -78,11 +82,14 @@ fun PlayerScreen(viewModel: PlayerViewModel, onBack: () -> Unit, modifier: Modif
                     .padding(horizontal = 20.dp),
             verticalArrangement = Arrangement.spacedBy(16.dp),
         ) {
-            Text(
-                text = episode?.title.orEmpty(),
-                style = MaterialTheme.typography.titleLarge,
-                modifier = Modifier.padding(top = 8.dp),
+            ArtworkImage(
+                bitmap = artwork,
+                title = feed?.title.orEmpty(),
+                size = ArtworkSizes.PLAYER,
+                cornerRadius = 12.dp,
+                modifier = Modifier.align(Alignment.CenterHorizontally).padding(top = 8.dp),
             )
+            Text(text = episode?.title.orEmpty(), style = MaterialTheme.typography.titleLarge)
             ProgressSection(status = status, onSeek = viewModel::seekTo)
             TransportControls(
                 isPlaying = status.isPlaying,

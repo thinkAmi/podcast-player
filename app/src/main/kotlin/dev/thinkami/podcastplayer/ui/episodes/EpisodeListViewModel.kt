@@ -1,9 +1,11 @@
 package dev.thinkami.podcastplayer.ui.episodes
 
+import android.graphics.Bitmap
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import dev.thinkami.podcastplayer.data.EpisodeRepository
 import dev.thinkami.podcastplayer.data.FeedRepository
+import dev.thinkami.podcastplayer.data.artwork.ArtworkStore
 import dev.thinkami.podcastplayer.data.download.DownloadState
 import dev.thinkami.podcastplayer.data.download.EpisodeDownloader
 import dev.thinkami.podcastplayer.data.net.NetworkStateProvider
@@ -14,6 +16,7 @@ import dev.thinkami.podcastplayer.logic.model.Feed
 import dev.thinkami.podcastplayer.logic.model.PlayedSnapshot
 import dev.thinkami.podcastplayer.player.PlaybackConnection
 import dev.thinkami.podcastplayer.player.PlaybackStatus
+import dev.thinkami.podcastplayer.ui.ArtworkSizes
 import dev.thinkami.podcastplayer.ui.UndoablePlayedChange
 import java.io.IOException
 import kotlinx.coroutines.ExperimentalCoroutinesApi
@@ -22,6 +25,7 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.filterNotNull
 import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.map
@@ -39,11 +43,24 @@ class EpisodeListViewModel(
     private val downloader: EpisodeDownloader,
     private val networkState: NetworkStateProvider,
     private val playback: PlaybackConnection,
+    artworkStore: ArtworkStore,
 ) : ViewModel() {
 
     val feed: StateFlow<Feed?> =
         feedRepository
             .observeFeed(feedId)
+            .stateIn(viewModelScope, SharingStarted.WhileSubscribed(STOP_TIMEOUT_MS), null)
+
+    /**
+     * 上部バーに出す番組アートワーク1枚。取得できていなければ null(モノグラムを描く)。
+     *
+     * 同じパスに対する再デコードを避けるため、パスが変わったときだけ読み直す。
+     */
+    val artwork: StateFlow<Bitmap?> =
+        feed
+            .map { it?.artworkLocalPath }
+            .distinctUntilChanged()
+            .map { path -> artworkStore.load(path, ArtworkSizes.HEADER_TARGET_PX) }
             .stateIn(viewModelScope, SharingStarted.WhileSubscribed(STOP_TIMEOUT_MS), null)
 
     /** 番組に保存された絞り込み条件を適用した一覧。条件を変えると自動で流れ直す。 */
