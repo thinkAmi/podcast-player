@@ -20,3 +20,16 @@ data class UndoablePlayedChange(
         const val UNDO_WINDOW_MS = 5_000L
     }
 }
+
+/**
+ * 視聴済みにしたときに何が起きたのかを伝える文言。
+ *
+ * 一覧の行と統合エピソード画面で同じ操作が同じ意味を持つ以上、伝え方も揃える。 黙って再生を止めたりファイルを消したりしない。
+ */
+fun playedMessage(downloaded: Boolean, stopsPlayback: Boolean): String =
+    when {
+        stopsPlayback && downloaded -> "視聴済みにして再生を停止しました。ダウンロードを削除します"
+        stopsPlayback -> "視聴済みにして再生を停止しました"
+        downloaded -> "視聴済みにしました。ダウンロードを削除します"
+        else -> "視聴済みにしました"
+    }

@@ -1,7 +1,9 @@
 package dev.thinkami.podcastplayer.ui.episodes
 
+import android.graphics.Bitmap
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
@@ -17,11 +19,10 @@ import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
-import androidx.compose.material3.SnackbarDuration
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
-import androidx.compose.material3.SnackbarResult
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
@@ -32,6 +33,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -39,8 +41,8 @@ import dev.thinkami.podcastplayer.data.download.DownloadState
 import dev.thinkami.podcastplayer.logic.model.Episode
 import dev.thinkami.podcastplayer.logic.model.EpisodeFilter
 import dev.thinkami.podcastplayer.player.PlaybackStatus
-import dev.thinkami.podcastplayer.ui.UndoablePlayedChange
-import kotlinx.coroutines.withTimeoutOrNull
+import dev.thinkami.podcastplayer.ui.ArtworkImage
+import dev.thinkami.podcastplayer.ui.ArtworkSizes
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -51,17 +53,18 @@ fun EpisodeListScreen(
     modifier: Modifier = Modifier,
 ) {
     val feed by viewModel.feed.collectAsStateWithLifecycle()
+    val artwork by viewModel.artwork.collectAsStateWithLifecycle()
     val episodes by viewModel.episodes.collectAsStateWithLifecycle()
     val downloadStates by viewModel.downloadStates.collectAsStateWithLifecycle()
     val playbackStatus by viewModel.playbackStatus.collectAsStateWithLifecycle()
     val isRefreshing by viewModel.isRefreshing.collectAsStateWithLifecycle()
-    val pendingUndo by viewModel.pendingUndo.collectAsStateWithLifecycle()
     val confirmation by viewModel.downloadConfirmation.collectAsStateWithLifecycle()
     val message by viewModel.message.collectAsStateWithLifecycle()
     val snackbarHostState = remember { SnackbarHostState() }
     var showUnsubscribeConfirm by remember { mutableStateOf(false) }
 
-    UndoEffect(pendingUndo, snackbarHostState, viewModel::undoPending, viewModel::commitPendingUndo)
+    // 視聴済みの取り消し猶予はアプリ全体で1つ持ち、表示も PodcastPlayerApp が受け持つ
+    // (視聴済みにして前の画面へ戻る経路があるため、画面ごとに持つと取り消せなくなる)。
     MessageEffect(message, snackbarHostState, viewModel::consumeMessage)
 
     Scaffold(
@@ -69,6 +72,8 @@ fun EpisodeListScreen(
         topBar = {
             EpisodeListTopBar(
                 title = feed?.title.orEmpty(),
+                feedUrl = feed?.feedUrl.orEmpty(),
+                artwork = artwork,
                 onBack = onBack,
                 onMarkAllPlayed = { viewModel.markAllPlayed(true) },
                 onMarkAllUnplayed = { viewModel.markAllPlayed(false) },
@@ -107,17 +112,43 @@ fun EpisodeListScreen(
     )
 }
 
+/**
+ * 上部バーに番組のアートワーク・番組名・フィードURLを出す。
+ *
+ * URL は購読一覧の行から移してきたもの。一覧では番組の見分けをアートワークが引き受けるため字数を 使わず、URL
+ * は「その番組の詳細な場所」であるこの画面に置く(取り込みスクリプトの引数にも使う)。
+ *
+ * アートワークはエピソード行ではなくここに1枚だけ置く。同じ番組の画面で全行に同じ画像を並べても 見分けの情報は増えず、行の左端は DL/再生の操作が使っている。
+ */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun EpisodeListTopBar(
     title: String,
+    feedUrl: String,
+    artwork: Bitmap?,
     onBack: () -> Unit,
     onMarkAllPlayed: () -> Unit,
     onMarkAllUnplayed: () -> Unit,
     onUnsubscribe: () -> Unit,
 ) {
     TopAppBar(
-        title = { Text(title, maxLines = 1) },
+        title = {
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(12.dp),
+            ) {
+                ArtworkImage(bitmap = artwork, title = title, size = ArtworkSizes.HEADER)
+                Column {
+                    Text(title, style = MaterialTheme.typography.titleMedium, maxLines = 1)
+                    Text(
+                        text = feedUrl,
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        maxLines = 1,
+                    )
+                }
+            }
+        },
         navigationIcon = {
             IconButton(onClick = onBack) {
                 Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "戻る")
@@ -303,32 +334,6 @@ private fun formatSize(sizeBytes: Long?): String {
     if (sizeBytes == null || sizeBytes <= 0L) return ""
     val megabytes = sizeBytes / 1024.0 / 1024.0
     return "%.0fMB ".format(megabytes)
-}
-
-/**
- * 取り消し猶予つきのスナックバー。
- *
- * 猶予のあいだに「元に戻す」が押されなければ、そこで初めてDLファイルを削除する。
- */
-@Composable
-private fun UndoEffect(
-    pending: UndoablePlayedChange?,
-    snackbarHostState: SnackbarHostState,
-    onUndo: () -> Unit,
-    onCommit: () -> Unit,
-) {
-    LaunchedEffect(pending) {
-        if (pending == null) return@LaunchedEffect
-        val result =
-            withTimeoutOrNull(UndoablePlayedChange.UNDO_WINDOW_MS) {
-                snackbarHostState.showSnackbar(
-                    message = pending.message,
-                    actionLabel = "元に戻す",
-                    duration = SnackbarDuration.Indefinite,
-                )
-            }
-        if (result == SnackbarResult.ActionPerformed) onUndo() else onCommit()
-    }
 }
 
 @Composable

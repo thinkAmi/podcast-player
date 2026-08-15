@@ -3,7 +3,6 @@ package dev.thinkami.podcastplayer.ui.player
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import dev.thinkami.podcastplayer.data.EpisodeRepository
-import dev.thinkami.podcastplayer.data.FeedRepository
 import dev.thinkami.podcastplayer.logic.model.Episode
 import dev.thinkami.podcastplayer.player.PlaybackConnection
 import dev.thinkami.podcastplayer.player.PlaybackStatus
@@ -17,19 +16,21 @@ import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 
-/** 選べる再生速度。刻みを増やしすぎない(選択肢が多いこと自体が負担になる)。 */
-val PLAYBACK_SPEEDS = listOf(0.8f, 1.0f, 1.2f, 1.5f, 1.8f, 2.0f)
-
+/**
+ * アプリ全体で1つだけ持つ「いま鳴っているもの」。
+ *
+ * ミニプレイヤーの表示と、統合エピソード画面が読む再生状態の更新(シークバーを進めるための 定期的な読み直し)を受け持つ。エピソード1件に対する操作は統合エピソード画面の ViewModel
+ * が持つため、ここには置かない。
+ */
 @OptIn(ExperimentalCoroutinesApi::class)
 class PlayerViewModel(
     private val playback: PlaybackConnection,
-    private val feedRepository: FeedRepository,
     episodeRepository: EpisodeRepository,
 ) : ViewModel() {
 
     val status: StateFlow<PlaybackStatus> = playback.status
 
-    /** いま鳴っているエピソード。ミニプレイヤーとプレイヤー画面の両方が読む。 */
+    /** いま鳴っているエピソード。ミニプレイヤーの表示と、追随・出し分けの判断に使う。 */
     val currentEpisode: StateFlow<Episode?> =
         playback.status
             .map { it.episodeId }
@@ -49,19 +50,6 @@ class PlayerViewModel(
     }
 
     fun togglePlayPause() = playback.togglePlayPause()
-
-    fun seekBack() = playback.seekBack()
-
-    fun seekForward() = playback.seekForward()
-
-    fun seekTo(positionMs: Long) = playback.seekTo(positionMs)
-
-    /** 速度は番組ごとに保存する。話速は番組によって大きく違うため。 */
-    fun setSpeed(speed: Float) {
-        playback.setSpeed(speed)
-        val feedId = currentEpisode.value?.feedId ?: return
-        viewModelScope.launch { feedRepository.updatePlaybackSpeed(feedId, speed) }
-    }
 
     private companion object {
         const val STOP_TIMEOUT_MS = 5_000L

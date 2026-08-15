@@ -1,9 +1,11 @@
 package dev.thinkami.podcastplayer.ui.episodes
 
+import android.graphics.Bitmap
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import dev.thinkami.podcastplayer.data.EpisodeRepository
 import dev.thinkami.podcastplayer.data.FeedRepository
+import dev.thinkami.podcastplayer.data.artwork.ArtworkStore
 import dev.thinkami.podcastplayer.data.download.DownloadState
 import dev.thinkami.podcastplayer.data.download.EpisodeDownloader
 import dev.thinkami.podcastplayer.data.net.NetworkStateProvider
@@ -14,7 +16,10 @@ import dev.thinkami.podcastplayer.logic.model.Feed
 import dev.thinkami.podcastplayer.logic.model.PlayedSnapshot
 import dev.thinkami.podcastplayer.player.PlaybackConnection
 import dev.thinkami.podcastplayer.player.PlaybackStatus
+import dev.thinkami.podcastplayer.ui.ArtworkSizes
+import dev.thinkami.podcastplayer.ui.PlayedUndoHolder
 import dev.thinkami.podcastplayer.ui.UndoablePlayedChange
+import dev.thinkami.podcastplayer.ui.playedMessage
 import java.io.IOException
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.Flow
@@ -22,6 +27,7 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.filterNotNull
 import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.map
@@ -39,11 +45,25 @@ class EpisodeListViewModel(
     private val downloader: EpisodeDownloader,
     private val networkState: NetworkStateProvider,
     private val playback: PlaybackConnection,
+    private val playedUndo: PlayedUndoHolder,
+    artworkStore: ArtworkStore,
 ) : ViewModel() {
 
     val feed: StateFlow<Feed?> =
         feedRepository
             .observeFeed(feedId)
+            .stateIn(viewModelScope, SharingStarted.WhileSubscribed(STOP_TIMEOUT_MS), null)
+
+    /**
+     * 上部バーに出す番組アートワーク1枚。取得できていなければ null(モノグラムを描く)。
+     *
+     * 同じパスに対する再デコードを避けるため、パスが変わったときだけ読み直す。
+     */
+    val artwork: StateFlow<Bitmap?> =
+        feed
+            .map { it?.artworkLocalPath }
+            .distinctUntilChanged()
+            .map { path -> artworkStore.load(path, ArtworkSizes.HEADER_TARGET_PX) }
             .stateIn(viewModelScope, SharingStarted.WhileSubscribed(STOP_TIMEOUT_MS), null)
 
     /** 番組に保存された絞り込み条件を適用した一覧。条件を変えると自動で流れ直す。 */
@@ -61,9 +81,6 @@ class EpisodeListViewModel(
 
     private val mutableIsRefreshing = MutableStateFlow(false)
     val isRefreshing: StateFlow<Boolean> = mutableIsRefreshing.asStateFlow()
-
-    private val mutablePendingUndo = MutableStateFlow<UndoablePlayedChange?>(null)
-    val pendingUndo: StateFlow<UndoablePlayedChange?> = mutablePendingUndo.asStateFlow()
 
     private val mutableConfirmation = MutableStateFlow<DownloadConfirmation?>(null)
     val downloadConfirmation: StateFlow<DownloadConfirmation?> = mutableConfirmation.asStateFlow()
@@ -103,24 +120,27 @@ class EpisodeListViewModel(
 
     // ---- 視聴状態 ----
 
-    /** 1件の視聴済みを切り替える。視聴済みにした場合だけ取り消しの猶予を置く。 未聴に戻す操作は非可逆な副作用がないため猶予は不要。 */
+    /**
+     * 1件の視聴済みを切り替える。視聴済みにした場合だけ取り消しの猶予を置く。 未聴に戻す操作は非可逆な副作用がないため猶予は不要。
+     *
+     * 鳴っているエピソードを視聴済みにするのは「これはもう聴かなくていい」という判断なので、 記録だけ変えて鳴らし続けない。統合エピソード画面と同じく再生を止め、キューを空にする
+     * (この画面は開いたままにする。閉じる先がない)。
+     */
     fun togglePlayed(episode: Episode) {
+        val stopsPlayback = episode.id == playback.status.value.episodeId && !episode.played
         viewModelScope.launch {
             val nowPlayed = !episode.played
             episodeRepository.setPlayed(episode.id, nowPlayed)
+            if (stopsPlayback) playback.stop()
             if (nowPlayed) {
-                mutablePendingUndo.value =
+                playedUndo.record(
                     UndoablePlayedChange(
-                        // 何が起きるのかを明示する。黙ってファイルを消さない。
-                        message =
-                            if (episode.downloaded) {
-                                "視聴済みにしました。ダウンロードを削除します"
-                            } else {
-                                "視聴済みにしました"
-                            },
+                        // 何が起きるのかを明示する。黙って再生を止めたりファイルを消したりしない。
+                        message = playedMessage(episode.downloaded, stopsPlayback),
                         snapshots = listOf(PlayedSnapshot(episode.id, episode.played)),
                         affectedEpisodeIds = listOf(episode.id),
                     )
+                )
             } else {
                 // 未聴に戻す操作にも結果を返す。視聴済みのときだけ無言、では一貫しない。
                 mutableMessage.value = "未聴に戻しました"
@@ -133,7 +153,7 @@ class EpisodeListViewModel(
             val downloadedCount = episodeRepository.findEpisodes(feedId).count { it.downloaded }
             val snapshots = episodeRepository.setPlayedForFeed(feedId, played)
             if (played) {
-                mutablePendingUndo.value =
+                playedUndo.record(
                     UndoablePlayedChange(
                         message =
                             if (downloadedCount > 0) {
@@ -144,25 +164,11 @@ class EpisodeListViewModel(
                         snapshots = snapshots,
                         affectedEpisodeIds = snapshots.map { it.episodeId },
                     )
+                )
             } else {
                 mutableMessage.value = "${snapshots.size}件を未聴に戻しました"
             }
         }
-    }
-
-    /** 猶予が過ぎた。ここで初めてファイルを消す。 */
-    fun commitPendingUndo() {
-        val pending = mutablePendingUndo.value ?: return
-        mutablePendingUndo.value = null
-        viewModelScope.launch {
-            episodeRepository.deleteDownloadsIfEligible(pending.affectedEpisodeIds)
-        }
-    }
-
-    fun undoPending() {
-        val pending = mutablePendingUndo.value ?: return
-        mutablePendingUndo.value = null
-        viewModelScope.launch { episodeRepository.restorePlayed(pending.snapshots) }
     }
 
     // ---- ダウンロード ----
@@ -194,7 +200,7 @@ class EpisodeListViewModel(
 
     // ---- 再生 ----
 
-    /** いま表示されている並び順のまま、DL済みだけを再生順にして渡す。 現在のエピソードだけは開始ではなくトグルに読み替える。 */
+    /** いま表示されている一覧から、DL済みだけを古い順(表示の逆順)に並べて再生順として渡す。 現在のエピソードだけは開始ではなくトグルに読み替える。 */
     fun play(episode: Episode) {
         // キューを組み直すと保存位置へシークし直す「リセット」になってしまうため、
         // 現在のエピソードは再生/一時停止の切り替えだけを行う。

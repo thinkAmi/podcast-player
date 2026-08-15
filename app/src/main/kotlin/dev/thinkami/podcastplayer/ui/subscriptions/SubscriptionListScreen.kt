@@ -38,6 +38,7 @@ fun SubscriptionListScreen(
     modifier: Modifier = Modifier,
 ) {
     val feeds by viewModel.feeds.collectAsStateWithLifecycle()
+    val artworks by viewModel.artworks.collectAsStateWithLifecycle()
     val isRefreshing by viewModel.isRefreshing.collectAsStateWithLifecycle()
     val message by viewModel.message.collectAsStateWithLifecycle()
     val snackbarHostState = remember { SnackbarHostState() }
@@ -70,7 +71,11 @@ fun SubscriptionListScreen(
             } else {
                 LazyColumn {
                     items(feeds, key = { it.feed.id }) { item ->
-                        FeedRow(item = item, onClick = { onOpenFeed(item.feed.id) })
+                        FeedRow(
+                            item = item,
+                            artwork = artworks[item.feed.id],
+                            onClick = { onOpenFeed(item.feed.id) },
+                        )
                     }
                 }
             }

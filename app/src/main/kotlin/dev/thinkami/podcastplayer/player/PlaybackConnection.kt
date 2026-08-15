@@ -71,6 +71,20 @@ class PlaybackConnection(private val context: Context) {
         player.play()
     }
 
+    /**
+     * 再生を止め、キューを空にする。
+     *
+     * 「もう聴かなくていい」と判断されたときに UI から呼ばれる。player 層は視聴済みの記録を 見ておらず(見はじめると再生の責務に判断が混ざる)、停止は常に利用者の操作を起点にする。
+     *
+     * キューを空にするところまでを1つの操作にするのは、鳴っていたものが「現在のエピソード」の ままだと、メディア通知・ミニプレイヤー・削除猶予のどれもが宙に浮くため。
+     */
+    fun stop() {
+        val player = controller ?: return
+        player.stop()
+        player.clearMediaItems()
+        publishStatus()
+    }
+
     fun togglePlayPause() {
         val player = controller ?: return
         if (player.isPlaying) player.pause() else player.play()
