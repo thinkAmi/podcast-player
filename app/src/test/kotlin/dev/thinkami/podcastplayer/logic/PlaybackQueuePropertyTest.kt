@@ -8,76 +8,71 @@ import io.kotest.property.arbitrary.list
 import io.kotest.property.checkAll
 import kotlinx.coroutines.runBlocking
 import org.junit.Assert.assertEquals
-import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
 
 /**
- * nextAutoPlayable と playbackOrderFrom は「フィルター適用後のリスト順=再生順」という同じ解釈の
- * 2通りの実装。乖離すると「タップして始めた順」と「自動継続の順」がずれるため、任意のDL状態の 組み合わせで両者が一致することを検証する。
+ * 再生順は「一覧(新しい順)を逆に辿る」という一つの規則で決まる。DL状態の並びは任意なので、 個別の例では踏み尽くせない組み合わせをここで確かめる。
+ *
+ * 検証するのは4つ: 先頭は必ず選んだ回であること、並ぶのはDL済みだけであること、順序が古い順 (=一覧の逆順)であること、選んだ回が鳴らせないなら何も始まらないこと。
  */
 class PlaybackQueuePropertyTest {
 
+    /** 一覧と同じ新しい順に並べる。id が大きいほど新しい回。 */
     private fun episodes(downloadedFlags: List<Boolean>): List<Episode> =
         downloadedFlags.mapIndexed { index, dl ->
-            episode(id = index + 1L, downloaded = dl)
+            episode(id = (downloadedFlags.size - index).toLong(), downloaded = dl)
         }
 
-    @Test
-    fun `再生順はDL済みの選択エピソードから始まり以降もDL済みだけが元の順序で並ぶ`() {
+    /** 任意のDL状態の一覧と、その中の任意の開始位置で検証する。 */
+    private fun forEachStart(check: (List<Episode>, Int) -> Unit) {
         runBlocking {
             checkAll(Arb.list(Arb.boolean(), 1..20), Arb.int(0..99)) { flags, pick ->
                 val list = episodes(flags)
-                val startIndex = pick % list.size
-                val start = list[startIndex]
-                val order = PlaybackQueue.playbackOrderFrom(list, start.id)
-                if (start.downloaded) {
-                    assertEquals(start.id, order.first().id)
-                    assertTrue(order.all { it.downloaded })
-                    // 選択位置以降のDL済み全件が、元リストの順序のまま過不足なく含まれる
-                    val expectedIds = list.drop(startIndex).filter { it.downloaded }.map { it.id }
-                    assertEquals(expectedIds, order.map { it.id })
-                } else {
-                    assertTrue(order.isEmpty())
-                }
+                check(list, pick % list.size)
             }
         }
     }
 
     @Test
-    fun `タップ再生の2曲目と自動継続の次曲は一致する`() {
-        runBlocking {
-            checkAll(Arb.list(Arb.boolean(), 1..20), Arb.int(0..99)) { flags, pick ->
-                val list = episodes(flags)
-                val start = list[pick % list.size]
-                val next = PlaybackQueue.nextAutoPlayable(list, start.id)
-                if (start.downloaded) {
-                    val order = PlaybackQueue.playbackOrderFrom(list, start.id)
-                    assertEquals(next?.id, order.getOrNull(1)?.id)
-                }
-            }
-        }
+    fun `先頭は選んだ回でありDL済みだけが並ぶ`() = forEachStart { list, startIndex ->
+        val start = list[startIndex]
+        val order = PlaybackQueue.playbackOrderFrom(list, start.id)
+        if (!start.downloaded) return@forEachStart
+
+        assertEquals(start.id, order.first().id)
+        assertTrue(order.all { it.downloaded })
     }
 
     @Test
-    fun `自動継続の次曲は現在曲より後の最初のDL済みである`() {
-        runBlocking {
-            checkAll(Arb.list(Arb.boolean(), 1..20), Arb.int(0..99)) { flags, pick ->
-                val list = episodes(flags)
-                val currentIndex = pick % list.size
-                val current = list[currentIndex]
-                val next = PlaybackQueue.nextAutoPlayable(list, current.id)
-                val after = list.drop(currentIndex + 1)
-                if (next == null) {
-                    assertTrue(after.none { it.downloaded })
-                } else {
-                    assertTrue(next.downloaded)
-                    val nextPos = after.indexOfFirst { it.id == next.id }
-                    assertTrue(nextPos >= 0)
-                    assertTrue(after.take(nextPos).none { it.downloaded })
-                }
-            }
-        }
+    fun `並びは一覧の逆順つまり古い順になる`() = forEachStart { list, startIndex ->
+        val start = list[startIndex]
+        val order = PlaybackQueue.playbackOrderFrom(list, start.id)
+        if (!start.downloaded) return@forEachStart
+
+        // 選ばれた顔ぶれをそのままに、一覧を逆から辿った順序と一致する(重複も混入もない)
+        val selectedIds = order.map { it.id }.toSet()
+        val oldestFirst = list.reversed().map { it.id }.filter { it in selectedIds }
+        assertEquals(oldestFirst, order.map { it.id })
+    }
+
+    @Test
+    fun `選んだ回より古い回は入らず新しい側のDL済みは漏れない`() = forEachStart { list, startIndex ->
+        val start = list[startIndex]
+        val order = PlaybackQueue.playbackOrderFrom(list, start.id)
+        if (!start.downloaded) return@forEachStart
+
+        val newerSide = list.take(startIndex + 1)
+        assertTrue(order.all { queued -> newerSide.any { it.id == queued.id } })
+        assertEquals(newerSide.count { it.downloaded }, order.size)
+    }
+
+    @Test
+    fun `未DLの回からは何も始まらない`() = forEachStart { list, startIndex ->
+        val start = list[startIndex]
+        if (start.downloaded) return@forEachStart
+
+        assertTrue(PlaybackQueue.playbackOrderFrom(list, start.id).isEmpty())
     }
 
     @Test
@@ -87,7 +82,6 @@ class PlaybackQueuePropertyTest {
                 val list = episodes(flags)
                 val unknownId = list.size + 100L
                 assertTrue(PlaybackQueue.playbackOrderFrom(list, unknownId).isEmpty())
-                assertNull(PlaybackQueue.nextAutoPlayable(list, unknownId))
             }
         }
     }
