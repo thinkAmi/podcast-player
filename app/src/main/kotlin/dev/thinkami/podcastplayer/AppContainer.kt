@@ -13,6 +13,7 @@ import dev.thinkami.podcastplayer.data.net.NetworkStateProvider
 import dev.thinkami.podcastplayer.data.rss.RssXmlReader
 import dev.thinkami.podcastplayer.data.storage.MediaFileStorage
 import dev.thinkami.podcastplayer.player.PlaybackConnection
+import dev.thinkami.podcastplayer.ui.PlayedUndoHolder
 
 /**
  * 手動DIコンテナ。アプリの生存期間中ひとつだけ存在する。
@@ -36,6 +37,9 @@ class AppContainer(private val applicationContext: Context) {
     val episodeRepository: EpisodeRepository by lazy {
         RoomEpisodeRepository(database.episodeDao(), fileStorage)
     }
+
+    /** 視聴済み操作の取り消し猶予。画面をまたいで1件だけ持つ。 */
+    val playedUndo: PlayedUndoHolder by lazy { PlayedUndoHolder(episodeRepository) }
 
     val downloader: EpisodeDownloader by lazy {
         EpisodeDownloader(httpFetcher, fileStorage, database.episodeDao())

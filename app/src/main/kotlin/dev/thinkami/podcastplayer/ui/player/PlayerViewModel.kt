@@ -1,69 +1,42 @@
 package dev.thinkami.podcastplayer.ui.player
 
-import android.graphics.Bitmap
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import dev.thinkami.podcastplayer.data.EpisodeRepository
-import dev.thinkami.podcastplayer.data.FeedRepository
-import dev.thinkami.podcastplayer.data.artwork.ArtworkStore
 import dev.thinkami.podcastplayer.logic.model.Episode
-import dev.thinkami.podcastplayer.logic.model.Feed
 import dev.thinkami.podcastplayer.player.PlaybackConnection
 import dev.thinkami.podcastplayer.player.PlaybackStatus
-import dev.thinkami.podcastplayer.ui.ArtworkSizes
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
-import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 
-/** 選べる再生速度。刻みを増やしすぎない(選択肢が多いこと自体が負担になる)。 */
-val PLAYBACK_SPEEDS = listOf(0.8f, 1.0f, 1.2f, 1.5f, 1.8f, 2.0f)
-
+/**
+ * アプリ全体で1つだけ持つ「いま鳴っているもの」。
+ *
+ * ミニプレイヤーの表示と、統合エピソード画面が読む再生状態の更新(シークバーを進めるための 定期的な読み直し)を受け持つ。エピソード1件に対する操作は統合エピソード画面の ViewModel
+ * が持つため、ここには置かない。
+ */
 @OptIn(ExperimentalCoroutinesApi::class)
 class PlayerViewModel(
     private val playback: PlaybackConnection,
-    private val feedRepository: FeedRepository,
     episodeRepository: EpisodeRepository,
-    artworkStore: ArtworkStore,
 ) : ViewModel() {
 
     val status: StateFlow<PlaybackStatus> = playback.status
 
-    /** いま鳴っているエピソード。ミニプレイヤーとプレイヤー画面の両方が読む。 */
+    /** いま鳴っているエピソード。ミニプレイヤーの表示と、追随・出し分けの判断に使う。 */
     val currentEpisode: StateFlow<Episode?> =
         playback.status
             .map { it.episodeId }
             .flatMapLatest { id ->
                 if (id == null) flowOf(null) else episodeRepository.observeEpisode(id)
             }
-            .stateIn(viewModelScope, SharingStarted.WhileSubscribed(STOP_TIMEOUT_MS), null)
-
-    /** 再生中エピソードが属する番組。アートワークと、画像が無いときのモノグラムの元になる。 */
-    val currentFeed: StateFlow<Feed?> =
-        currentEpisode
-            .map { it?.feedId }
-            .distinctUntilChanged()
-            .flatMapLatest { feedId ->
-                if (feedId == null) flowOf(null) else feedRepository.observeFeed(feedId)
-            }
-            .stateIn(viewModelScope, SharingStarted.WhileSubscribed(STOP_TIMEOUT_MS), null)
-
-    /**
-     * 番組のアートワーク。
-     *
-     * アートワークはエピソードではなく番組の属性なので、エピソードが次に進んでも同じ画像を使う。 パスが変わらないかぎり読み直さない。
-     */
-    val artwork: StateFlow<Bitmap?> =
-        currentFeed
-            .map { it?.artworkLocalPath }
-            .distinctUntilChanged()
-            .map { path -> artworkStore.load(path, ArtworkSizes.PLAYER_TARGET_PX) }
             .stateIn(viewModelScope, SharingStarted.WhileSubscribed(STOP_TIMEOUT_MS), null)
 
     init {
@@ -77,19 +50,6 @@ class PlayerViewModel(
     }
 
     fun togglePlayPause() = playback.togglePlayPause()
-
-    fun seekBack() = playback.seekBack()
-
-    fun seekForward() = playback.seekForward()
-
-    fun seekTo(positionMs: Long) = playback.seekTo(positionMs)
-
-    /** 速度は番組ごとに保存する。話速は番組によって大きく違うため。 */
-    fun setSpeed(speed: Float) {
-        playback.setSpeed(speed)
-        val feedId = currentEpisode.value?.feedId ?: return
-        viewModelScope.launch { feedRepository.updatePlaybackSpeed(feedId, speed) }
-    }
 
     private companion object {
         const val STOP_TIMEOUT_MS = 5_000L

@@ -23,7 +23,9 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import dev.thinkami.podcastplayer.data.download.DownloadState
+import dev.thinkami.podcastplayer.logic.EpisodeAction
 import dev.thinkami.podcastplayer.logic.model.Episode
+import dev.thinkami.podcastplayer.ui.episodeActionFor
 import java.time.Instant
 import java.time.ZoneId
 import java.time.format.DateTimeFormatter
@@ -88,15 +90,15 @@ private fun LeadingAction(
     onPlay: () -> Unit,
     onDownload: () -> Unit,
 ) {
-    when {
-        downloadState is DownloadState.InProgress ->
+    when (episodeActionFor(episode, downloadState, isCurrent)) {
+        EpisodeAction.DOWNLOADING ->
             // 進み具合は行の副題にも百分率で出す。小さな円だけでは残量が読み取れないため。
             CircularProgressIndicator(
-                progress = { downloadState.fraction ?: 0f },
+                progress = { (downloadState as? DownloadState.InProgress)?.fraction ?: 0f },
                 modifier = Modifier.padding(horizontal = 12.dp).size(32.dp),
                 strokeWidth = 3.dp,
             )
-        isCurrent ->
+        EpisodeAction.TOGGLE_PLAY_PAUSE ->
             // 現在のエピソード。タップはトグルへ読み替えられる(EpisodeListViewModel.play)。
             IconButton(onClick = onPlay) {
                 Icon(
@@ -104,11 +106,11 @@ private fun LeadingAction(
                     contentDescription = if (isPlaying) "一時停止" else "再生",
                 )
             }
-        episode.downloaded ->
+        EpisodeAction.PLAY ->
             IconButton(onClick = onPlay) {
                 Icon(Icons.Filled.PlayArrow, contentDescription = "再生")
             }
-        downloadState is DownloadState.Failed ->
+        EpisodeAction.RETRY_DOWNLOAD ->
             IconButton(onClick = onDownload) {
                 Icon(
                     Icons.Filled.ErrorOutline,
@@ -116,7 +118,7 @@ private fun LeadingAction(
                     tint = MaterialTheme.colorScheme.error,
                 )
             }
-        else ->
+        EpisodeAction.DOWNLOAD ->
             IconButton(onClick = onDownload) {
                 Icon(Icons.Filled.Download, contentDescription = "ダウンロード")
             }

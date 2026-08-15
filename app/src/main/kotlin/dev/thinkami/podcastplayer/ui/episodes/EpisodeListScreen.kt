@@ -21,10 +21,8 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
-import androidx.compose.material3.SnackbarDuration
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
-import androidx.compose.material3.SnackbarResult
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
@@ -45,8 +43,6 @@ import dev.thinkami.podcastplayer.logic.model.EpisodeFilter
 import dev.thinkami.podcastplayer.player.PlaybackStatus
 import dev.thinkami.podcastplayer.ui.ArtworkImage
 import dev.thinkami.podcastplayer.ui.ArtworkSizes
-import dev.thinkami.podcastplayer.ui.UndoablePlayedChange
-import kotlinx.coroutines.withTimeoutOrNull
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -62,13 +58,13 @@ fun EpisodeListScreen(
     val downloadStates by viewModel.downloadStates.collectAsStateWithLifecycle()
     val playbackStatus by viewModel.playbackStatus.collectAsStateWithLifecycle()
     val isRefreshing by viewModel.isRefreshing.collectAsStateWithLifecycle()
-    val pendingUndo by viewModel.pendingUndo.collectAsStateWithLifecycle()
     val confirmation by viewModel.downloadConfirmation.collectAsStateWithLifecycle()
     val message by viewModel.message.collectAsStateWithLifecycle()
     val snackbarHostState = remember { SnackbarHostState() }
     var showUnsubscribeConfirm by remember { mutableStateOf(false) }
 
-    UndoEffect(pendingUndo, snackbarHostState, viewModel::undoPending, viewModel::commitPendingUndo)
+    // 視聴済みの取り消し猶予はアプリ全体で1つ持ち、表示も PodcastPlayerApp が受け持つ
+    // (視聴済みにして前の画面へ戻る経路があるため、画面ごとに持つと取り消せなくなる)。
     MessageEffect(message, snackbarHostState, viewModel::consumeMessage)
 
     Scaffold(
@@ -338,32 +334,6 @@ private fun formatSize(sizeBytes: Long?): String {
     if (sizeBytes == null || sizeBytes <= 0L) return ""
     val megabytes = sizeBytes / 1024.0 / 1024.0
     return "%.0fMB ".format(megabytes)
-}
-
-/**
- * 取り消し猶予つきのスナックバー。
- *
- * 猶予のあいだに「元に戻す」が押されなければ、そこで初めてDLファイルを削除する。
- */
-@Composable
-private fun UndoEffect(
-    pending: UndoablePlayedChange?,
-    snackbarHostState: SnackbarHostState,
-    onUndo: () -> Unit,
-    onCommit: () -> Unit,
-) {
-    LaunchedEffect(pending) {
-        if (pending == null) return@LaunchedEffect
-        val result =
-            withTimeoutOrNull(UndoablePlayedChange.UNDO_WINDOW_MS) {
-                snackbarHostState.showSnackbar(
-                    message = pending.message,
-                    actionLabel = "元に戻す",
-                    duration = SnackbarDuration.Indefinite,
-                )
-            }
-        if (result == SnackbarResult.ActionPerformed) onUndo() else onCommit()
-    }
 }
 
 @Composable
