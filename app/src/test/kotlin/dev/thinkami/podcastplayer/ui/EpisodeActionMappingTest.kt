@@ -1,6 +1,7 @@
 package dev.thinkami.podcastplayer.ui
 
 import dev.thinkami.podcastplayer.data.download.DownloadState
+import dev.thinkami.podcastplayer.logic.DownloadFailure
 import dev.thinkami.podcastplayer.logic.EpisodeAction
 import dev.thinkami.podcastplayer.logic.model.Episode
 import org.junit.Assert.assertEquals
@@ -47,7 +48,7 @@ class EpisodeActionMappingTest {
         val action =
             episodeActionFor(
                 episode = episode(),
-                downloadState = DownloadState.Failed("失敗"),
+                downloadState = DownloadState.Failed(DownloadFailure.Connection),
                 isCurrent = false,
             )
         assertEquals(EpisodeAction.RETRY_DOWNLOAD, action)

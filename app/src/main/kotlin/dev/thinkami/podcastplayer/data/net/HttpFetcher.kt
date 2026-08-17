@@ -68,7 +68,7 @@ class HttpFetcher {
         val status = connection.responseCode
         if (status !in HTTP_OK_RANGE) {
             connection.disconnect()
-            throw IOException("HTTP $status: $url")
+            throw HttpStatusException(status, url)
         }
         return connection
     }
@@ -119,6 +119,13 @@ class HttpFetcher {
 
 /** 取得を許可していないURL。https と計装テスト用の loopback 以外はここで止まる。 */
 class UnsupportedUrlException(url: String) : IOException("取得できないURLです: $url")
+
+/**
+ * サーバーがエラーステータスを返した応答。
+ *
+ * メッセージだけでなくステータスを型として持つのは、失敗の種別を行に出すときに 呼び出し側がメッセージ文字列を解釈しなくて済むようにするため。
+ */
+class HttpStatusException(val status: Int, url: String) : IOException("HTTP $status: $url")
 
 /** `identity` を要求したにもかかわらず圧縮して返された応答。 */
 class CompressedResponseException(url: String, encoding: String) :

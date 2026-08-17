@@ -121,12 +121,18 @@ class HttpFetcherTest {
     }
 
     @Test
-    fun エラー応答はIOExceptionになる() {
+    fun エラー応答はステータス付きのIOExceptionになる() {
         server.respondWith(FakeResponse.status(NOT_FOUND, "Not Found"))
 
-        assertThrows(IOException::class.java) {
-            runBlocking { fetcher.fetchText(server.url("/missing.xml")) }
-        }
+        // ステータスを型で持つ。行に出す失敗の種別を、呼び出し側がメッセージ文字列の
+        // 解釈なしに決められるようにするため。
+        val thrown =
+            assertThrows(HttpStatusException::class.java) {
+                runBlocking { fetcher.fetchText(server.url("/missing.xml")) }
+            }
+
+        assertTrue(thrown is IOException)
+        assertEquals(NOT_FOUND, thrown.status)
     }
 
     private companion object {
