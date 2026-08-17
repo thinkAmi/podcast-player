@@ -25,20 +25,22 @@ A を先に入れると「取得できないURL」の表示を実データで再
 - [x] 1b.4 design.md の Non-Goals を訂正し D2b を追記、`episode-download` の delta spec に統合エピソード画面と読み上げのシナリオを足す
 - [x] 1b.5 `./gradlew check` を通し、`installDebug` で実機へ上書きインストールする
 - [x] 1b.6 追補をコミットする
+- [x] 1b.7 `EpisodeRowTest` の不要な import を外す(`assertDoesNotExist` は member であり import 不要)。`./gradlew check` は androidTest をコンパイルしないため 3.5 の `connectedAndroidTest` まで検出できなかった
 
 ## 2. 実機確認(利用者が行う checkpoint)
 
 - [x] 2.1 「セキュリティのアレ」の第5回「緊急特番的な感じでペチャクチャやろうぜ!スペシャル」の DL アイコンをタップし、行の 2 行目が「2017/07/01 ・ 26分 ・ DL失敗(取得できないURL)」で、末尾に「タップでやり直す」が**無い**ことを確認する(通信は発生しないのでギガを消費しない)
   - 一覧の表示は意図どおり。統合エピソード画面に「もう一度試す」が残っている漏れを検出 → 1b で対応
 - [x] 2.2 長いタイトルの行(第4回・第3回など)でも同じ操作をし、2 行目が崩れず読めることを確認する
-- [ ] 2.3 (再確認)統合エピソード画面へ遷移して DL を実行し、ラベルが「DL失敗(取得できないURL)」で「もう一度試す」を含まないことを確認する。一覧の表示が 2.1 から変わっていないことも見る
-- [ ] 2.4 文言・案内の有無に修正があれば D2 の表と 1.2 / 1b.1 のテストを直してから 3 へ進む。問題なければそのまま 3 へ
+- [x] 2.3 (再確認)統合エピソード画面へ遷移して DL を実行し、ラベルが「DL失敗(取得できないURL)」で「もう一度試す」を含まないことを確認する。一覧の表示が 2.1 から変わっていないことも見る
+  - 確認済み(2026-08-17)。文言の修正指示はなし
+- [x] 2.4 文言・案内の有無に修正があれば D2 の表と 1.2 / 1b.1 のテストを直してから 3 へ進む。問題なければそのまま 3 へ
 
 ## 3. (A) 平文 http の https 書き換え
 
-- [ ] 3.1 `HttpUrlPolicy.isAllowed` を `resolveFetchUrl(url): String?` に置き換える(https → そのまま / loopback http → そのまま / それ以外の http → 先頭スキームのみ `https://` に置換 / 他 → null)。`HttpUrlPolicyTest` を更新し、大文字スキーム・クエリ内の `http://`・userinfo 詐称・空白を含む URL のケースを足す
-- [ ] 3.2 `HttpFetcher.connect` を `resolveFetchUrl` の結果で接続する形にする(null は `UnsupportedUrlException`)。DB や呼び出し側の URL は変えない
-- [ ] 3.3 `./gradlew check` を通し、`installDebug` で実機へ上書きインストールする
+- [x] 3.1 `HttpUrlPolicy.isAllowed` を `resolveFetchUrl(url): String?` に置き換える(https → そのまま / loopback http → そのまま / それ以外の http → 先頭スキームのみ `https://` に置換 / 他 → null)。`HttpUrlPolicyTest` を更新し、大文字スキーム・クエリ内の `http://`・userinfo 詐称・空白を含む URL のケースを足す
+- [x] 3.2 `HttpFetcher.connect` を `resolveFetchUrl` の結果で接続する形にする(null は `UnsupportedUrlException`)。DB や呼び出し側の URL は変えない
+- [x] 3.3 `./gradlew check` を通し、`installDebug` で実機へ上書きインストールする
 - [ ] 3.4 実機で第5回を DL し、進捗表示 → DL 済みになること、再生できることを確認する(Wi-Fi 接続で行う。実サイズ 37.4MB がフィード申告 25MB を超えるため進捗が 100% を超えて見えるのは既知)
-- [ ] 3.5 `connectedAndroidTest` で `HttpFetcherTest`(loopback が書き換えられないこと)が通ることを確認する(`.instrumented` 別パッケージで実行される)
-- [ ] 3.6 A をコミットする
+- [x] 3.5 `connectedAndroidTest` で `HttpFetcherTest`(loopback が書き換えられないこと)が通ることを確認する(`.instrumented` 別パッケージで実行される)
+- [x] 3.6 A をコミットする
