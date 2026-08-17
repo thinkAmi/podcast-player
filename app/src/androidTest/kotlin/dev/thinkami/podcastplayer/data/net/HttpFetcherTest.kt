@@ -105,10 +105,30 @@ class HttpFetcherTest {
     }
 
     @Test
-    fun loopback以外の平文HTTPは拒否される() {
-        assertThrows(UnsupportedUrlException::class.java) {
-            runBlocking { fetcher.fetchText("http://example.com/feed.xml") }
-        }
+    fun loopback宛の平文HTTPは書き換えられず届く() {
+        // 計装テストの Fake サーバーは平文。ここが https へ書き換わると接続できなくなる。
+        server.respondWith(FakeResponse.plainText("<rss/>"))
+
+        val fetched = runBlocking { fetcher.fetchText(server.url("/feed.xml")) }
+
+        assertEquals("<rss/>", fetched)
+        assertEquals(1, server.requests.size)
+    }
+
+    @Test
+    fun loopback以外の平文HTTPはhttpsとして取りにいく() {
+        // 同じ待ち受けを loopback 以外の名前で指す。書き換わるので https で接続を試みることになり、
+        // 平文で待つサーバーとは手が合わずに失敗する。
+        val plainUrl = server.url("/feed.xml").replaceFirst(LOOPBACK_IP, "localhost")
+
+        assertThrows(IOException::class.java) { runBlocking { fetcher.fetchText(plainUrl) } }
+
+        // 書き換えが効いていなければ、平文のGETがそのまま届いてしまう。
+        // TLSの握手はこのサーバーからは解釈できない断片として見えるので、パスの有無で判定する。
+        assertTrue(
+            server.requests.map { it.requestLine }.toString(),
+            server.requests.none { it.requestLine.contains("/feed.xml") },
+        )
     }
 
     @Test
@@ -121,16 +141,23 @@ class HttpFetcherTest {
     }
 
     @Test
-    fun エラー応答はIOExceptionになる() {
+    fun エラー応答はステータス付きのIOExceptionになる() {
         server.respondWith(FakeResponse.status(NOT_FOUND, "Not Found"))
 
-        assertThrows(IOException::class.java) {
-            runBlocking { fetcher.fetchText(server.url("/missing.xml")) }
-        }
+        // ステータスを型で持つ。行に出す失敗の種別を、呼び出し側がメッセージ文字列の
+        // 解釈なしに決められるようにするため。
+        val thrown =
+            assertThrows(HttpStatusException::class.java) {
+                runBlocking { fetcher.fetchText(server.url("/missing.xml")) }
+            }
+
+        assertTrue(thrown is IOException)
+        assertEquals(NOT_FOUND, thrown.status)
     }
 
     private companion object {
         val AUDIO = ByteArray(2_048) { (it % 251).toByte() }
         const val NOT_FOUND = 404
+        const val LOOPBACK_IP = "127.0.0.1"
     }
 }

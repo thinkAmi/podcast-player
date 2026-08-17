@@ -53,12 +53,11 @@ class HttpFetcher {
     }
 
     private fun connect(url: String, acceptEncoding: String?): HttpURLConnection {
-        // キャスト前に検査する。file: などを渡すと ClassCastException になり、IOException では
+        // キャスト前に決める。file: などを渡すと ClassCastException になり、IOException では
         // ないため上位の catch を素通りしてアプリが落ちる。
-        if (!HttpUrlPolicy.isAllowed(url)) {
-            throw UnsupportedUrlException(url)
-        }
-        val connection = URL(url).openConnection() as HttpURLConnection
+        // 平文HTTPはここで https へ書き換わるため、この先に平文で出る経路はない。
+        val fetchUrl = HttpUrlPolicy.resolveFetchUrl(url) ?: throw UnsupportedUrlException(url)
+        val connection = URL(fetchUrl).openConnection() as HttpURLConnection
         connection.connectTimeout = CONNECT_TIMEOUT_MS
         connection.readTimeout = READ_TIMEOUT_MS
         connection.requestMethod = "GET"
@@ -68,7 +67,9 @@ class HttpFetcher {
         val status = connection.responseCode
         if (status !in HTTP_OK_RANGE) {
             connection.disconnect()
-            throw IOException("HTTP $status: $url")
+            // 実際に叩いたURLを載せる。書き換え後のどちらで失敗したのかが分かるようにするため。
+            // https から平文への転送は HttpURLConnection が追わないので、ここで 3xx として現れる。
+            throw HttpStatusException(status, fetchUrl)
         }
         return connection
     }
@@ -119,6 +120,13 @@ class HttpFetcher {
 
 /** 取得を許可していないURL。https と計装テスト用の loopback 以外はここで止まる。 */
 class UnsupportedUrlException(url: String) : IOException("取得できないURLです: $url")
+
+/**
+ * サーバーがエラーステータスを返した応答。
+ *
+ * メッセージだけでなくステータスを型として持つのは、失敗の種別を行に出すときに 呼び出し側がメッセージ文字列を解釈しなくて済むようにするため。
+ */
+class HttpStatusException(val status: Int, url: String) : IOException("HTTP $status: $url")
 
 /** `identity` を要求したにもかかわらず圧縮して返された応答。 */
 class CompressedResponseException(url: String, encoding: String) :

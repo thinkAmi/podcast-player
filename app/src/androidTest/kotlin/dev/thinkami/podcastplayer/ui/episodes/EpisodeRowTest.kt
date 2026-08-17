@@ -7,6 +7,7 @@ import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import dev.thinkami.podcastplayer.data.download.DownloadState
+import dev.thinkami.podcastplayer.logic.DownloadFailure
 import dev.thinkami.podcastplayer.logic.model.Episode
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
@@ -160,7 +161,7 @@ class EpisodeRowTest {
         composeRule.setContent {
             EpisodeRow(
                 episode = episode(downloaded = false),
-                downloadState = DownloadState.Failed("失敗"),
+                downloadState = DownloadState.Failed(DownloadFailure.Connection),
                 onPlay = {},
                 onDownload = { retried = true },
                 onTogglePlayed = {},
@@ -168,8 +169,55 @@ class EpisodeRowTest {
             )
         }
 
-        composeRule.onNodeWithContentDescription("ダウンロードに失敗。もう一度試す").performClick()
+        composeRule.onNodeWithContentDescription("DL失敗(接続できず)。もう一度試す").performClick()
 
         assertTrue(retried)
+    }
+
+    @Test
+    fun やり直せる失敗は理由と再試行の案内を出す() {
+        composeRule.setContent {
+            EpisodeRow(
+                episode = episode(downloaded = false),
+                downloadState = DownloadState.Failed(DownloadFailure.HttpStatus(NOT_FOUND)),
+                onPlay = {},
+                onDownload = {},
+                onTogglePlayed = {},
+                onOpenDetail = {},
+            )
+        }
+
+        composeRule
+            .onNodeWithText("DL失敗(HTTP 404) ・ タップでやり直す", substring = true)
+            .assertIsDisplayed()
+    }
+
+    @Test
+    fun やり直しても変わらない失敗は再試行の案内を出さない() {
+        composeRule.setContent {
+            EpisodeRow(
+                episode = episode(downloaded = false),
+                downloadState =
+                    DownloadState.Failed(
+                        DownloadFailure.UnsupportedUrl,
+                        detail = "取得できないURLです: http://example.test/a.mp3",
+                    ),
+                onPlay = {},
+                onDownload = {},
+                onTogglePlayed = {},
+                onOpenDetail = {},
+            )
+        }
+
+        // 理由は出すが、やり直しても同じ結果になるので案内はしない。detail の URL も行には出さない。
+        composeRule.onNodeWithText("DL失敗(取得できないURL)", substring = true).assertIsDisplayed()
+        composeRule.onNodeWithText("タップでやり直す", substring = true).assertDoesNotExist()
+        composeRule
+            .onNodeWithText("http://example.test/a.mp3", substring = true)
+            .assertDoesNotExist()
+    }
+
+    private companion object {
+        const val NOT_FOUND = 404
     }
 }

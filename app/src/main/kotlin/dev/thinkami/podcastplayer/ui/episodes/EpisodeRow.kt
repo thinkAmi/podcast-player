@@ -23,9 +23,11 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import dev.thinkami.podcastplayer.data.download.DownloadState
+import dev.thinkami.podcastplayer.logic.DownloadFailurePresentation
 import dev.thinkami.podcastplayer.logic.EpisodeAction
 import dev.thinkami.podcastplayer.logic.model.Episode
 import dev.thinkami.podcastplayer.ui.episodeActionFor
+import dev.thinkami.podcastplayer.ui.failureActionLabel
 import java.time.Instant
 import java.time.ZoneId
 import java.time.format.DateTimeFormatter
@@ -114,7 +116,9 @@ private fun LeadingAction(
             IconButton(onClick = onDownload) {
                 Icon(
                     Icons.Filled.ErrorOutline,
-                    contentDescription = "ダウンロードに失敗。もう一度試す",
+                    // 読み上げにも副題と同じ規則を効かせる。画面に出ないだけで、
+                    // やり直しても変わらない失敗を促してしまうのは同じ。
+                    contentDescription = downloadState.failureActionLabel(),
                     tint = MaterialTheme.colorScheme.error,
                 )
             }
@@ -154,10 +158,24 @@ private fun episodeSubtitle(episode: Episode, downloadState: DownloadState?): St
     episode.durationMs?.let { parts += formatDuration(it) }
     when {
         downloadState is DownloadState.InProgress -> parts += downloadState.describe()
-        downloadState is DownloadState.Failed -> parts += "DL失敗 ・ タップでやり直す"
+        downloadState is DownloadState.Failed -> parts += downloadState.describe()
         episode.downloaded -> parts += "DL済み"
     }
     return parts.joinToString(" ・ ")
+}
+
+/**
+ * 失敗の理由と、勧められる場合だけ再試行の案内を出す。
+ *
+ * 案内を出さない種別でも再タップ自体は受け付ける(操作は奪わない)。案内が消えるだけ。
+ */
+private fun DownloadState.Failed.describe(): String {
+    val label = DownloadFailurePresentation.label(failure)
+    return if (DownloadFailurePresentation.suggestsRetry(failure)) {
+        "$label ・ タップでやり直す"
+    } else {
+        label
+    }
 }
 
 /** 全体サイズが分かるときは百分率、分からないときは受信済みのMBを出す。 */

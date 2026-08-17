@@ -1,8 +1,12 @@
 package dev.thinkami.podcastplayer.data.download
 
 import dev.thinkami.podcastplayer.data.db.EpisodeDao
+import dev.thinkami.podcastplayer.data.net.CompressedResponseException
 import dev.thinkami.podcastplayer.data.net.HttpFetcher
+import dev.thinkami.podcastplayer.data.net.HttpStatusException
+import dev.thinkami.podcastplayer.data.net.UnsupportedUrlException
 import dev.thinkami.podcastplayer.data.storage.MediaFileStorage
+import dev.thinkami.podcastplayer.logic.DownloadFailure
 import java.io.File
 import java.io.IOException
 import java.io.InputStream
@@ -46,9 +50,22 @@ class EpisodeDownloader(
             finalize(episodeId, partial, target)
         } catch (e: IOException) {
             storage.delete(partial.absolutePath)
-            updateState(episodeId, DownloadState.Failed(e.message ?: DEFAULT_FAILURE))
+            updateState(episodeId, DownloadState.Failed(classify(e), e.message))
         }
     }
+
+    /**
+     * 例外を行に出せる種別へ分類する。
+     *
+     * 分類がここにあるのは、例外型という JVM の都合を知っているのが data 層だから。 種別から先(文言・再試行を勧めるか)の判断は logic 層が持つ。
+     */
+    private fun classify(e: IOException): DownloadFailure =
+        when (e) {
+            is UnsupportedUrlException -> DownloadFailure.UnsupportedUrl
+            is HttpStatusException -> DownloadFailure.HttpStatus(e.status)
+            is CompressedResponseException -> DownloadFailure.CompressedResponse
+            else -> DownloadFailure.Connection
+        }
 
     private fun writeWithProgress(
         episodeId: Long,
@@ -74,7 +91,7 @@ class EpisodeDownloader(
         storage.delete(target.absolutePath)
         if (!partial.renameTo(target)) {
             storage.delete(partial.absolutePath)
-            updateState(episodeId, DownloadState.Failed(RENAME_FAILURE))
+            updateState(episodeId, DownloadState.Failed(DownloadFailure.Save))
             return
         }
         episodeDao.setDownloadState(episodeId, downloaded = true, localPath = target.absolutePath)
@@ -100,7 +117,5 @@ class EpisodeDownloader(
     private companion object {
         const val BUFFER_SIZE = 64 * 1024
         const val PARTIAL_SUFFIX = ".part"
-        const val DEFAULT_FAILURE = "ダウンロードに失敗しました"
-        const val RENAME_FAILURE = "保存に失敗しました"
     }
 }

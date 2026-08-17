@@ -49,6 +49,7 @@ import dev.thinkami.podcastplayer.player.PlaybackStatus
 import dev.thinkami.podcastplayer.ui.ArtworkImage
 import dev.thinkami.podcastplayer.ui.ArtworkSizes
 import dev.thinkami.podcastplayer.ui.episodeActionFor
+import dev.thinkami.podcastplayer.ui.failureActionLabel
 import dev.thinkami.podcastplayer.ui.showNotesToPlainText
 
 /** 選べる再生速度。刻みを増やしすぎない(選択肢が多いこと自体が負担になる)。 */
@@ -179,8 +180,10 @@ private fun EpisodeControls(
         EpisodeAction.DOWNLOAD ->
             PrimaryAction("ダウンロード", Icons.Filled.Download, viewModel::requestDownload)
         EpisodeAction.RETRY_DOWNLOAD ->
+            // 一覧を経由せずこの画面でDLした場合、失敗の理由を知る場所はここしかない。
+            // 再試行を勧めるかどうかの規則も行と共有する。
             PrimaryAction(
-                label = "ダウンロードに失敗。もう一度試す",
+                label = downloadState.failureActionLabel(),
                 icon = Icons.Filled.ErrorOutline,
                 onClick = viewModel::requestDownload,
                 tint = MaterialTheme.colorScheme.error,
