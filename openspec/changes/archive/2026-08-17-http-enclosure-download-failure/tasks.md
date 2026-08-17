@@ -41,6 +41,7 @@ A を先に入れると「取得できないURL」の表示を実データで再
 - [x] 3.1 `HttpUrlPolicy.isAllowed` を `resolveFetchUrl(url): String?` に置き換える(https → そのまま / loopback http → そのまま / それ以外の http → 先頭スキームのみ `https://` に置換 / 他 → null)。`HttpUrlPolicyTest` を更新し、大文字スキーム・クエリ内の `http://`・userinfo 詐称・空白を含む URL のケースを足す
 - [x] 3.2 `HttpFetcher.connect` を `resolveFetchUrl` の結果で接続する形にする(null は `UnsupportedUrlException`)。DB や呼び出し側の URL は変えない
 - [x] 3.3 `./gradlew check` を通し、`installDebug` で実機へ上書きインストールする
-- [ ] 3.4 実機で第5回を DL し、進捗表示 → DL 済みになること、再生できることを確認する(Wi-Fi 接続で行う。実サイズ 37.4MB がフィード申告 25MB を超えるため進捗が 100% を超えて見えるのは既知)
+- [x] 3.4 実機で第5回を DL し、進捗表示 → DL 済みになること、再生できることを確認する(Wi-Fi 接続で行う。実サイズ 37.4MB がフィード申告 25MB を超えるため進捗が 100% を超えて見えるのは既知)
+  - 確認済み(2026-08-17)。DL・再生とも問題なし
 - [x] 3.5 `connectedAndroidTest` で `HttpFetcherTest`(loopback が書き換えられないこと)が通ることを確認する(`.instrumented` 別パッケージで実行される)
 - [x] 3.6 A をコミットする
