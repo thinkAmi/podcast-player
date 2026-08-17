@@ -27,6 +27,7 @@ import dev.thinkami.podcastplayer.logic.DownloadFailurePresentation
 import dev.thinkami.podcastplayer.logic.EpisodeAction
 import dev.thinkami.podcastplayer.logic.model.Episode
 import dev.thinkami.podcastplayer.ui.episodeActionFor
+import dev.thinkami.podcastplayer.ui.failureActionLabel
 import java.time.Instant
 import java.time.ZoneId
 import java.time.format.DateTimeFormatter
@@ -115,7 +116,9 @@ private fun LeadingAction(
             IconButton(onClick = onDownload) {
                 Icon(
                     Icons.Filled.ErrorOutline,
-                    contentDescription = "ダウンロードに失敗。もう一度試す",
+                    // 読み上げにも副題と同じ規則を効かせる。画面に出ないだけで、
+                    // やり直しても変わらない失敗を促してしまうのは同じ。
+                    contentDescription = downloadState.failureActionLabel(),
                     tint = MaterialTheme.colorScheme.error,
                 )
             }

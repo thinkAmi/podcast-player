@@ -39,6 +39,32 @@ class DownloadFailurePresentationTest {
         }
     }
 
+    /** 副題で案内を消したのに操作の名前では促す、という食い違いが起きないこと。 */
+    @Test
+    fun `操作の名前は再試行を勧めるときだけ案内を含む`() {
+        expectations.forEach { (failure, expected) ->
+            val expectedActionLabel =
+                if (expected.suggestsRetry) "${expected.label}。もう一度試す" else expected.label
+            assertEquals(
+                failure.toString(),
+                expectedActionLabel,
+                DownloadFailurePresentation.actionLabel(failure),
+            )
+        }
+    }
+
+    @Test
+    fun `やり直しても変わらない種別の操作の名前は理由だけになる`() {
+        assertEquals(
+            "DL失敗(取得できないURL)",
+            DownloadFailurePresentation.actionLabel(DownloadFailure.UnsupportedUrl),
+        )
+        assertEquals(
+            "DL失敗(接続できず)。もう一度試す",
+            DownloadFailurePresentation.actionLabel(DownloadFailure.Connection),
+        )
+    }
+
     @Test
     fun `HTTPステータスはコードをそのまま出す`() {
         assertEquals(

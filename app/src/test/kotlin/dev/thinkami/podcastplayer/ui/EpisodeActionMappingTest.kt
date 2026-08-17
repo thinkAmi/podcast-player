@@ -86,4 +86,23 @@ class EpisodeActionMappingTest {
             )
         assertEquals(EpisodeAction.TOGGLE_PLAY_PAUSE, action)
     }
+
+    @Test
+    fun `失敗した操作の名前は種別から決まる`() {
+        assertEquals(
+            "DL失敗(HTTP 404)。もう一度試す",
+            DownloadState.Failed(DownloadFailure.HttpStatus(404)).failureActionLabel(),
+        )
+        assertEquals(
+            "DL失敗(取得できないURL)",
+            DownloadState.Failed(DownloadFailure.UnsupportedUrl).failureActionLabel(),
+        )
+    }
+
+    @Test
+    fun `種別が読めないときは接続不能として扱う`() {
+        // RETRY_DOWNLOAD は Failed のときしか現れないが、型では保証できない。
+        // 案内を出す側に倒しても操作は妨げない。
+        assertEquals("DL失敗(接続できず)。もう一度試す", null.failureActionLabel())
+    }
 }

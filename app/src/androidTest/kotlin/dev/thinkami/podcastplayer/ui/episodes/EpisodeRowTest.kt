@@ -170,7 +170,7 @@ class EpisodeRowTest {
             )
         }
 
-        composeRule.onNodeWithContentDescription("ダウンロードに失敗。もう一度試す").performClick()
+        composeRule.onNodeWithContentDescription("DL失敗(接続できず)。もう一度試す").performClick()
 
         assertTrue(retried)
     }

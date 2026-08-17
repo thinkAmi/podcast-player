@@ -42,6 +42,15 @@ object DownloadFailurePresentation {
         }
 
     /**
+     * 失敗した操作そのものに付ける名前(行のアイコンの読み上げ・統合エピソード画面のボタン)。
+     *
+     * 一覧の副題と別に用意するのは、こちらが「操作の名前」だからで、理由だけを述べる [label] とは 文体が違うため。ただし再試行を勧めるかどうかの規則は [suggestsRetry]
+     * で共有する。 副題では案内を消したのにボタンでは促す、という食い違いを構造で防ぐ。
+     */
+    fun actionLabel(failure: DownloadFailure): String =
+        if (suggestsRetry(failure)) "${label(failure)}。もう一度試す" else label(failure)
+
+    /**
      * 再試行を勧めてよいか。
      *
      * 勧めないのは、もう一度同じ操作をしても同じ理由で失敗することが分かっている種別。 案内を出さないだけで再タップ自体は妨げない(操作を奪うと、配信側が直ったときに

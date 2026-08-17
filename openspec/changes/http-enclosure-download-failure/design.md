@@ -20,7 +20,6 @@
 
 **Non-Goals:**
 - 平文 HTTP を実際に流すこと(cleartext 許可・ポリシー緩和)
-- 統合エピソード画面への失敗理由の表示(行で足りる。必要になったら別 change)
 - DB 上の URL の書き換え、フィード再取得時の正規化(取得の出口でだけ書き換える)
 - 自動リトライ、失敗の永続化(`Failed` は今までどおりプロセス内の状態)
 - フィード申告 `length` と実 Content-Length の食い違い(進捗が 100% を超えるだけ)への対処
@@ -54,6 +53,26 @@ URL 全文などの長い情報。行には出さない。ログや将来の詳�
 `EpisodeRow.episodeSubtitle` は `label` に、`suggestsRetry` のときだけ「 ・ タップでやり直す」を足す。
 `suggestsRetry=false` でもタップ自体は今までどおり再試行になる(`EpisodeActions` の RETRY_DOWNLOAD は
 不変)。案内を消すだけで、操作を奪わない。文言はすべて全数列挙のユニットテストで固定する。
+
+### D2b. 再試行案内の規則は失敗表示のあるすべての場所で共有する
+
+当初「統合エピソード画面への失敗理由の表示」を Non-Goal(行で足りる)としていたが、実機確認で
+誤りが判明した。同画面は失敗時に「ダウンロードに失敗。もう一度試す」という**独自の再試行案内**を
+可視ラベルとして出しており、行で案内を消しても同じ助言がより大きな文字で残っていた。一覧の行の
+アイコンの `contentDescription` も同文で、TalkBack では一覧でも同じことが起きる。
+
+そこで `DownloadFailurePresentation.actionLabel(failure)` を足す。理由(`label`)に、`suggestsRetry` が
+true のときだけ「。もう一度試す」を付けた文字列を返す。行の副題(「 ・ タップでやり直す」)と文体が
+違うのは、副題が状態の説明で、こちらが操作の名前だから。**文体は別だが、案内を出すかどうかの判断は
+`suggestsRetry` 1 つに集約する。**
+
+UI 側は `ui/EpisodeActionMapping` の `DownloadState?.failureActionLabel()` を経由して 2 画面で共有する
+(`episodeActionFor` と同じ、data 層の型を logic の判断へ橋渡しする場所)。`RETRY_DOWNLOAD` は
+`Failed` のときしか現れないが型では保証できないため、種別が読めない場合は `Connection` として扱う
+(案内を出す側に倒しても操作は妨げない)。
+
+統合エピソード画面に理由が出ること自体も、一覧を経由せずその画面で DL した場合に理由を知る場所が
+そこしかないため必要だった。
 
 ### D3. 例外 → 種別の分類は `data/` に置き、HTTP ステータスは型付き例外にする
 
