@@ -108,7 +108,7 @@ fun PodcastPlayerApp(container: AppContainer, modifier: Modifier = Modifier) {
         if (episode != null && showsMiniPlayer) {
             MiniPlayer(
                 episode = episode,
-                isPlaying = status.isPlaying,
+                status = status,
                 onTogglePlayPause = playerViewModel::togglePlayPause,
                 onOpenPlayer = { navController.navigate(Routes.detail(episode.id)) },
             )

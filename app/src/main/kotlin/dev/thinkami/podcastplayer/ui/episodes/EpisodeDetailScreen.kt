@@ -52,6 +52,7 @@ import dev.thinkami.podcastplayer.ui.ArtworkImage
 import dev.thinkami.podcastplayer.ui.ArtworkSizes
 import dev.thinkami.podcastplayer.ui.episodeActionFor
 import dev.thinkami.podcastplayer.ui.failureActionLabel
+import dev.thinkami.podcastplayer.ui.formatTime
 import dev.thinkami.podcastplayer.ui.showNotesToPlainText
 
 /** 選べる再生速度。刻みを増やしすぎない(選択肢が多いこと自体が負担になる)。 */
@@ -416,16 +417,4 @@ private fun formatSize(sizeBytes: Long?): String {
     if (sizeBytes == null || sizeBytes <= 0L) return ""
     val megabytes = sizeBytes / 1024.0 / 1024.0
     return "%.0fMB ".format(megabytes)
-}
-
-private fun formatTime(millis: Long): String {
-    val totalSeconds = (millis / 1_000L).coerceAtLeast(0L)
-    val hours = totalSeconds / 3_600L
-    val minutes = (totalSeconds % 3_600L) / 60L
-    val seconds = totalSeconds % 60L
-    return if (hours > 0L) {
-        "%d:%02d:%02d".format(hours, minutes, seconds)
-    } else {
-        "%d:%02d".format(minutes, seconds)
-    }
 }

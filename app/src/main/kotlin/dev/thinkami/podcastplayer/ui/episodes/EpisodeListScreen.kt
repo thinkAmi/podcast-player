@@ -75,6 +75,7 @@ fun EpisodeListScreen(
                 feedUrl = feed?.feedUrl.orEmpty(),
                 artwork = artwork,
                 onBack = onBack,
+                onRefresh = viewModel::refresh,
                 onMarkAllPlayed = { viewModel.markAllPlayed(true) },
                 onMarkAllUnplayed = { viewModel.markAllPlayed(false) },
                 onUnsubscribe = { showUnsubscribeConfirm = true },
@@ -127,6 +128,7 @@ private fun EpisodeListTopBar(
     feedUrl: String,
     artwork: Bitmap?,
     onBack: () -> Unit,
+    onRefresh: () -> Unit,
     onMarkAllPlayed: () -> Unit,
     onMarkAllUnplayed: () -> Unit,
     onUnsubscribe: () -> Unit,
@@ -156,6 +158,7 @@ private fun EpisodeListTopBar(
         },
         actions = {
             FeedMenu(
+                onRefresh = onRefresh,
                 onMarkAllPlayed = onMarkAllPlayed,
                 onMarkAllUnplayed = onMarkAllUnplayed,
                 onUnsubscribe = onUnsubscribe,
@@ -250,6 +253,7 @@ private fun FilterChips(
 
 @Composable
 private fun FeedMenu(
+    onRefresh: () -> Unit,
     onMarkAllPlayed: () -> Unit,
     onMarkAllUnplayed: () -> Unit,
     onUnsubscribe: () -> Unit,
@@ -260,6 +264,14 @@ private fun FeedMenu(
             Icon(Icons.Filled.MoreVert, contentDescription = "番組のメニュー")
         }
         DropdownMenu(expanded = expanded, onDismissRequest = { expanded = false }) {
+            // pull-to-refresh と同じ更新の見える入口。先頭に置き、末尾の「購読を削除」から離す。
+            DropdownMenuItem(
+                text = { Text("この番組を更新") },
+                onClick = {
+                    expanded = false
+                    onRefresh()
+                },
+            )
             DropdownMenuItem(
                 text = { Text("すべて視聴済みにする") },
                 onClick = {
