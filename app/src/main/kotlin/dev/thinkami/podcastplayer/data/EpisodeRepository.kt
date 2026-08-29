@@ -26,6 +26,12 @@ interface EpisodeRepository {
     /** 一括操作の取り消し。 */
     suspend fun restorePlayed(snapshots: List<PlayedSnapshot>)
 
+    /**
+     * favorite(聴き終わっても消さない)を変えるだけ。ファイル削除は行わない (★解除で削除する場合も、取り消しの猶予が過ぎてから
+     * [deleteDownloadsIfEligible] を呼ぶ)。
+     */
+    suspend fun setFavorite(episodeId: Long, favorite: Boolean)
+
     /** 再生位置の保存。 */
     suspend fun savePosition(episodeId: Long, positionMs: Long)
 

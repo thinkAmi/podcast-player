@@ -9,6 +9,7 @@ import dev.thinkami.podcastplayer.data.artwork.ArtworkStore
 import dev.thinkami.podcastplayer.data.download.DownloadState
 import dev.thinkami.podcastplayer.data.download.EpisodeDownloader
 import dev.thinkami.podcastplayer.data.net.NetworkStateProvider
+import dev.thinkami.podcastplayer.logic.ListeningRules
 import dev.thinkami.podcastplayer.logic.PlaybackQueue
 import dev.thinkami.podcastplayer.logic.model.Episode
 import dev.thinkami.podcastplayer.logic.model.Feed
@@ -16,7 +17,8 @@ import dev.thinkami.podcastplayer.logic.model.PlayedSnapshot
 import dev.thinkami.podcastplayer.player.PlaybackConnection
 import dev.thinkami.podcastplayer.player.PlaybackStatus
 import dev.thinkami.podcastplayer.ui.ArtworkSizes
-import dev.thinkami.podcastplayer.ui.PlayedUndoHolder
+import dev.thinkami.podcastplayer.ui.UndoHolder
+import dev.thinkami.podcastplayer.ui.UndoableFavoriteChange
 import dev.thinkami.podcastplayer.ui.UndoablePlayedChange
 import dev.thinkami.podcastplayer.ui.playedMessage
 import kotlinx.coroutines.ExperimentalCoroutinesApi
@@ -46,7 +48,7 @@ class EpisodeDetailViewModel(
     private val downloader: EpisodeDownloader,
     private val networkState: NetworkStateProvider,
     private val playback: PlaybackConnection,
-    private val playedUndo: PlayedUndoHolder,
+    private val undoHolder: UndoHolder,
     artworkStore: ArtworkStore,
 ) : ViewModel() {
 
@@ -182,7 +184,7 @@ class EpisodeDetailViewModel(
             episodeRepository.setPlayed(current.id, nowPlayed)
             if (stopsPlayback) playback.stop()
             if (nowPlayed) {
-                playedUndo.record(
+                undoHolder.record(
                     UndoablePlayedChange(
                         message = playedMessage(current.downloaded, stopsPlayback),
                         snapshots = listOf(PlayedSnapshot(current.id, current.played)),
@@ -194,6 +196,28 @@ class EpisodeDetailViewModel(
             }
             // 鳴っているものを視聴済みにした画面は、もう再生コントロールの置き場所ではない。
             if (stopsPlayback) onStopped()
+        }
+    }
+
+    /**
+     * favorite(聴き終わっても消さない)を切り替える。
+     *
+     * 削除の取り消し猶予に乗せるのは、★を外して保持ファイルが不要になったときだけ。 現在のエピソードは予約しない(鳴っている最中のファイルを消さないため。★はもう外れて
+     * いるので、実際に鳴り終わった時点の自動削除が消してくれる)。それ以外の付け外しは 記録を変えるだけで通知を出さない — ★はその場に見えており、再タップで戻せる。
+     */
+    fun toggleFavorite() {
+        val current = episode.value ?: return
+        val nowFavorite = !current.favorite
+        val schedulesDelete =
+            !nowFavorite &&
+                ListeningRules.shouldScheduleDeleteOnUnfavorite(
+                    played = current.played,
+                    downloaded = current.downloaded,
+                    isCurrent = isCurrent.value,
+                )
+        viewModelScope.launch {
+            episodeRepository.setFavorite(current.id, nowFavorite)
+            if (schedulesDelete) undoHolder.record(UndoableFavoriteChange(current.id))
         }
     }
 

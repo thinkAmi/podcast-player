@@ -8,6 +8,7 @@ import dev.thinkami.podcastplayer.data.db.FeedEntity
 import dev.thinkami.podcastplayer.data.db.PodcastDatabase
 import dev.thinkami.podcastplayer.data.storage.MediaFileStorage
 import java.io.File
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.test.runTest
 import org.junit.After
 import org.junit.Assert.assertEquals
@@ -156,6 +157,31 @@ class RoomEpisodeRepositoryTest {
 
         assertTrue(repository.findEpisode(alreadyPlayed)!!.played)
         assertFalse(repository.findEpisode(unplayed)!!.played)
+    }
+
+    @Test
+    fun favoriteの付け外しが記録とFlowに反映される() = runTest {
+        val (episodeId, _) = downloadedEpisode("fav-toggle")
+
+        repository.setFavorite(episodeId, favorite = true)
+        assertTrue(repository.findEpisode(episodeId)!!.favorite)
+        assertTrue(repository.observeEpisode(episodeId).first()!!.favorite)
+
+        repository.setFavorite(episodeId, favorite = false)
+        assertFalse(repository.findEpisode(episodeId)!!.favorite)
+    }
+
+    @Test
+    fun 猶予中にfavoriteへ戻すと猶予明けでも削除されない() = runTest {
+        // ★解除で削除を予約したあと、猶予中に★を付け直した状況。
+        // 削除実行時に行を読み直して再判定するため、予約側で取り消しを覚えておく必要はない。
+        val (episodeId, file) = downloadedEpisode("refav", played = true)
+
+        repository.setFavorite(episodeId, favorite = true)
+        repository.deleteDownloadsIfEligible(listOf(episodeId))
+
+        assertTrue(file.exists())
+        assertTrue(repository.findEpisode(episodeId)!!.downloaded)
     }
 
     @Test

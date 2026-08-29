@@ -45,6 +45,10 @@ class RoomEpisodeRepository(
             }
     }
 
+    override suspend fun setFavorite(episodeId: Long, favorite: Boolean) {
+        episodeDao.setFavorite(episodeId, favorite)
+    }
+
     override suspend fun savePosition(episodeId: Long, positionMs: Long) {
         episodeDao.setPosition(episodeId, positionMs)
     }
