@@ -29,6 +29,31 @@ class ListeningRulesTest {
     }
 
     @Test
+    fun `★解除の削除予約は全8状態で期待どおり`() {
+        // (played, downloaded, isCurrent) -> 予約するか。状態空間が小さいので全数列挙で固定する。
+        // 予約するのは「保持ファイルが不要になり、かつ鳴っている最中ではない」の1状態だけ。
+        val expectations =
+            mapOf(
+                Triple(true, true, false) to true,
+                Triple(true, true, true) to false, // 鳴っている最中は鳴り終わりの自動削除に任せる
+                Triple(true, false, false) to false, // 消すファイルがない
+                Triple(true, false, true) to false,
+                Triple(false, true, false) to false, // 未聴のファイルはまだ聴く
+                Triple(false, true, true) to false,
+                Triple(false, false, false) to false,
+                Triple(false, false, true) to false,
+            )
+        expectations.forEach { (state, expected) ->
+            val (played, downloaded, isCurrent) = state
+            assertEquals(
+                "played=$played downloaded=$downloaded isCurrent=$isCurrent",
+                expected,
+                ListeningRules.shouldScheduleDeleteOnUnfavorite(played, downloaded, isCurrent),
+            )
+        }
+    }
+
+    @Test
     fun `未聴なら保存位置から再開する`() {
         assertEquals(1_234L, ListeningRules.resumePositionMs(episode(positionMs = 1_234L)))
     }

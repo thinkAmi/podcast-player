@@ -9,17 +9,12 @@ import dev.thinkami.podcastplayer.logic.model.PlayedSnapshot
  * 自動判定(残り10秒到達)には猶予を設けない — 誤発動の余地がないため。
  */
 data class UndoablePlayedChange(
-    val message: String,
+    override val message: String,
     /** 操作前の状態。取り消し時にここへ戻す。 */
     val snapshots: List<PlayedSnapshot>,
     /** 猶予が過ぎたら削除判定にかけるエピソード。 */
-    val affectedEpisodeIds: List<Long>,
-) {
-    companion object {
-        /** 取り消しを受け付ける時間。 */
-        const val UNDO_WINDOW_MS = 5_000L
-    }
-}
+    override val affectedEpisodeIds: List<Long>,
+) : UndoableChange
 
 /**
  * 視聴済みにしたときに何が起きたのかを伝える文言。

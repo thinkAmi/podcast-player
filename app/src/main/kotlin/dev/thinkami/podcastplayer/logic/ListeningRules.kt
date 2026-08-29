@@ -19,6 +19,21 @@ object ListeningRules {
     fun shouldDeleteDownload(episode: Episode): Boolean =
         episode.played && episode.downloaded && !episode.favorite
 
+    /**
+     * ★(favorite)を外したときに、DLファイルの削除を予約すべきかどうか。
+     *
+     * 予約するのは、保持していたファイルが不要になったとき(視聴済み かつ DL済み)だけ。 現在のエピソード(いま鳴っているもの)は予約しない —
+     * 鳴っている最中のファイルを猶予明けに消さないためで、★は外れているので実際に 鳴り終わった時点の自動削除([shouldDeleteDownload])が消してくれる。
+     *
+     * 判断材料は真偽値だけにしてある([EpisodeActions.actionFor] と同じ流儀)。現在のエピソード かどうかは player の状態であり、Episode
+     * モデルからは分からないため。
+     */
+    fun shouldScheduleDeleteOnUnfavorite(
+        played: Boolean,
+        downloaded: Boolean,
+        isCurrent: Boolean,
+    ): Boolean = played && downloaded && !isCurrent
+
     /** 再生位置を復元すべき位置。完了済みのものは先頭から聴き直せるようにする。 */
     fun resumePositionMs(episode: Episode): Long =
         if (episode.played) 0L else episode.positionMs.coerceAtLeast(0L)

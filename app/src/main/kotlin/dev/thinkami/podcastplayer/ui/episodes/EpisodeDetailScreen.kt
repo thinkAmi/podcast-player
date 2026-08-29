@@ -19,7 +19,9 @@ import androidx.compose.material.icons.filled.Forward10
 import androidx.compose.material.icons.filled.Pause
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.Replay10
+import androidx.compose.material.icons.filled.Star
 import androidx.compose.material.icons.outlined.CheckCircle
+import androidx.compose.material.icons.outlined.Star
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -80,8 +82,10 @@ fun EpisodeDetailScreen(
         topBar = {
             DetailTopBar(
                 played = episode?.played,
+                favorite = episode?.favorite,
                 onBack = onBack,
                 onTogglePlayed = { viewModel.togglePlayed(onStopped = onBack) },
+                onToggleFavorite = viewModel::toggleFavorite,
             )
         },
         snackbarHost = { SnackbarHost(snackbarHostState) },
@@ -101,7 +105,13 @@ fun EpisodeDetailScreen(
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-private fun DetailTopBar(played: Boolean?, onBack: () -> Unit, onTogglePlayed: () -> Unit) {
+private fun DetailTopBar(
+    played: Boolean?,
+    favorite: Boolean?,
+    onBack: () -> Unit,
+    onTogglePlayed: () -> Unit,
+    onToggleFavorite: () -> Unit,
+) {
     TopAppBar(
         title = { Text("エピソード", maxLines = 1) },
         navigationIcon = {
@@ -109,7 +119,10 @@ private fun DetailTopBar(played: Boolean?, onBack: () -> Unit, onTogglePlayed: (
                 Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "戻る")
             }
         },
-        actions = { played?.let { PlayedToggle(played = it, onToggle = onTogglePlayed) } },
+        actions = {
+            favorite?.let { FavoriteToggle(favorite = it, onToggle = onToggleFavorite) }
+            played?.let { PlayedToggle(played = it, onToggle = onTogglePlayed) }
+        },
     )
 }
 
@@ -252,6 +265,23 @@ private fun describeProgress(state: DownloadState.InProgress): String {
         "ダウンロード中 $percent"
     } else {
         "ダウンロード中 %.0fMB".format(state.bytesRead / 1024.0 / 1024.0)
+    }
+}
+
+/** favorite(聴き終わっても消さない)の★。この画面にだけ置く — 一覧の行には出さない。 */
+@Composable
+private fun FavoriteToggle(favorite: Boolean, onToggle: () -> Unit) {
+    IconButton(onClick = onToggle) {
+        Icon(
+            imageVector = if (favorite) Icons.Filled.Star else Icons.Outlined.Star,
+            contentDescription = if (favorite) "★を外す" else "★を付ける(聴き終わっても消さない)",
+            tint =
+                if (favorite) {
+                    MaterialTheme.colorScheme.primary
+                } else {
+                    MaterialTheme.colorScheme.outline
+                },
+        )
     }
 }
 

@@ -81,8 +81,8 @@ fun PodcastPlayerApp(container: AppContainer, modifier: Modifier = Modifier) {
     FollowCurrentEpisode(navController) { status.episodeId }
 
     val undoHostState = remember { SnackbarHostState() }
-    val pendingUndo by container.playedUndo.pending.collectAsStateWithLifecycle()
-    UndoEffect(pendingUndo, undoHostState, container.playedUndo::undo, container.playedUndo::commit)
+    val pendingUndo by container.undoHolder.pending.collectAsStateWithLifecycle()
+    UndoEffect(pendingUndo, undoHostState, container.undoHolder::undo, container.undoHolder::commit)
 
     // 鳴っているものを映している画面は、それ自身がプレイヤー。二重に操作を並べない。
     val episode = currentEpisode
@@ -151,7 +151,7 @@ private fun FollowCurrentEpisode(
  */
 @Composable
 private fun UndoEffect(
-    pending: UndoablePlayedChange?,
+    pending: UndoableChange?,
     snackbarHostState: SnackbarHostState,
     onUndo: () -> Unit,
     onCommit: () -> Unit,
@@ -159,7 +159,7 @@ private fun UndoEffect(
     LaunchedEffect(pending) {
         if (pending == null) return@LaunchedEffect
         val result =
-            withTimeoutOrNull(UndoablePlayedChange.UNDO_WINDOW_MS) {
+            withTimeoutOrNull(UndoableChange.UNDO_WINDOW_MS) {
                 snackbarHostState.showSnackbar(
                     message = pending.message,
                     actionLabel = "元に戻す",
@@ -211,7 +211,7 @@ private fun AppNavHost(
                     downloader = container.downloader,
                     networkState = container.networkState,
                     playback = container.playback,
-                    playedUndo = container.playedUndo,
+                    undoHolder = container.undoHolder,
                     artworkStore = container.artworkStore,
                 )
             }
@@ -235,7 +235,7 @@ private fun AppNavHost(
                     downloader = container.downloader,
                     networkState = container.networkState,
                     playback = container.playback,
-                    playedUndo = container.playedUndo,
+                    undoHolder = container.undoHolder,
                     artworkStore = container.artworkStore,
                 )
             }

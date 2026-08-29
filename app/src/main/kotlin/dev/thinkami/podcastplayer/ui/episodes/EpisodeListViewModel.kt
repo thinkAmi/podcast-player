@@ -17,7 +17,7 @@ import dev.thinkami.podcastplayer.logic.model.PlayedSnapshot
 import dev.thinkami.podcastplayer.player.PlaybackConnection
 import dev.thinkami.podcastplayer.player.PlaybackStatus
 import dev.thinkami.podcastplayer.ui.ArtworkSizes
-import dev.thinkami.podcastplayer.ui.PlayedUndoHolder
+import dev.thinkami.podcastplayer.ui.UndoHolder
 import dev.thinkami.podcastplayer.ui.UndoablePlayedChange
 import dev.thinkami.podcastplayer.ui.playedMessage
 import java.io.IOException
@@ -45,7 +45,7 @@ class EpisodeListViewModel(
     private val downloader: EpisodeDownloader,
     private val networkState: NetworkStateProvider,
     private val playback: PlaybackConnection,
-    private val playedUndo: PlayedUndoHolder,
+    private val undoHolder: UndoHolder,
     artworkStore: ArtworkStore,
 ) : ViewModel() {
 
@@ -133,7 +133,7 @@ class EpisodeListViewModel(
             episodeRepository.setPlayed(episode.id, nowPlayed)
             if (stopsPlayback) playback.stop()
             if (nowPlayed) {
-                playedUndo.record(
+                undoHolder.record(
                     UndoablePlayedChange(
                         // 何が起きるのかを明示する。黙って再生を止めたりファイルを消したりしない。
                         message = playedMessage(episode.downloaded, stopsPlayback),
@@ -153,7 +153,7 @@ class EpisodeListViewModel(
             val downloadedCount = episodeRepository.findEpisodes(feedId).count { it.downloaded }
             val snapshots = episodeRepository.setPlayedForFeed(feedId, played)
             if (played) {
-                playedUndo.record(
+                undoHolder.record(
                     UndoablePlayedChange(
                         message =
                             if (downloadedCount > 0) {
