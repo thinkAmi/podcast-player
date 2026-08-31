@@ -22,7 +22,7 @@ TBD - created by archiving change podcast-player-mvp. Update Purpose after archi
 - **THEN** 番組・全エピソード記録・DL済みファイルが削除され、購読一覧から消える
 
 ### Requirement: 手動フィード更新
-フィード更新はpull-to-refreshによる手動操作のみとする(SHALL)。購読一覧画面では全番組を、エピソード一覧画面ではその番組のみを更新する。
+フィード更新は利用者の明示的な手動操作のみとする(SHALL)。購読一覧画面ではpull-to-refreshで全番組を更新する。エピソード一覧画面では、pull-to-refreshまたはオーバーフローメニューの「この番組を更新」で、その番組のみを更新する。両経路は同一の更新処理を用いるものとし(SHALL)、経路によって取得内容や状態の扱いが変わってはならない(MUST NOT)。「この番組を更新」はメニューの先頭に置き、破壊的操作(購読を削除)から最も離れた位置とする(SHALL)。
 
 #### Scenario: 購読一覧での全番組更新
 - **WHEN** 購読一覧画面で引っ張って更新する
@@ -31,6 +31,10 @@ TBD - created by archiving change podcast-player-mvp. Update Purpose after archi
 #### Scenario: 番組単位の更新
 - **WHEN** エピソード一覧画面で引っ張って更新する
 - **THEN** その番組のRSSのみが取得され、新規エピソードが追加される
+
+#### Scenario: メニューからの番組単位の更新
+- **WHEN** エピソード一覧画面のオーバーフローメニューで先頭の「この番組を更新」を選ぶ
+- **THEN** pull-to-refreshと同じ更新処理でその番組のRSSのみが取得され、更新中の表示も既存のインジケーターで示される
 
 #### Scenario: 既存エピソードの状態保持
 - **WHEN** フィード更新で既知のguidのエピソードを再受信する
