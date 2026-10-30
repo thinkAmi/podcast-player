@@ -10,19 +10,29 @@ import dev.thinkami.podcastplayer.logic.DownloadFailure
 import java.io.File
 import java.io.IOException
 import java.io.InputStream
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.update
+import kotlinx.coroutines.launch
 
 /**
  * エピソード音声のダウンロード。
  *
  * 自動ダウンロードは実装しない。DLは必ず利用者が行アイコンをタップした結果として起きる。 自動リトライもしない(失敗は行に表示し、再タップでやり直す)。
+ *
+ * DLの実行はアプリ生存期間の [scope] が引き受ける。依頼した画面(ViewModel)のスコープで走らせると、
+ * 受信の途中で画面を閉じたときにキャンセルされ、受信し終えたのに保存が確定しないまま進捗だけが残る。
  */
 class EpisodeDownloader(
     private val fetcher: HttpFetcher,
     private val storage: MediaFileStorage,
     private val episodeDao: EpisodeDao,
+    private val scope: CoroutineScope =
+        CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate),
 ) {
 
     private val mutableStates = MutableStateFlow<Map<Long, DownloadState>>(emptyMap())
@@ -30,12 +40,17 @@ class EpisodeDownloader(
     /** 実行中・失敗の状態。DL済みかどうかはDBが持つ。 */
     val states: StateFlow<Map<Long, DownloadState>> = mutableStates.asStateFlow()
 
+    /** 1件のDLを開始する。完了を待たずに戻り、進み具合は [states] とDBに現れる。 */
+    fun start(episodeId: Long) {
+        scope.launch { download(episodeId) }
+    }
+
     /**
      * 1件をダウンロードして保存し、DBのDL状態を更新する。
      *
      * 途中で失敗した場合は一時ファイルを片付け、DB上は未DLのままにする。中途半端なファイルが DL済みとして残ると、再生時に壊れた音声を掴むことになるため。
      */
-    suspend fun download(episodeId: Long) {
+    private suspend fun download(episodeId: Long) {
         val episode = episodeDao.findById(episodeId) ?: return
         if (mutableStates.value[episodeId] is DownloadState.InProgress) return
 
@@ -51,6 +66,20 @@ class EpisodeDownloader(
         } catch (e: IOException) {
             storage.delete(partial.absolutePath)
             updateState(episodeId, DownloadState.Failed(classify(e), e.message))
+        } finally {
+            abandonIfUnfinished(episodeId, partial)
+        }
+    }
+
+    /**
+     * 完了も失敗もしないまま抜けた(キャンセル・想定外の例外)ときの片付け。
+     *
+     * 例外そのものは握らずに伝播させ、一時ファイルと進行中の表示だけを消す。進行中の表示が残ると 再タップも受け付けなくなり、アプリを終了するまで取り戻せないため。
+     */
+    private fun abandonIfUnfinished(episodeId: Long, partial: File) {
+        if (mutableStates.value[episodeId] is DownloadState.InProgress) {
+            storage.delete(partial.absolutePath)
+            updateState(episodeId, DownloadState.Idle)
         }
     }
 
@@ -98,13 +127,15 @@ class EpisodeDownloader(
         updateState(episodeId, DownloadState.Idle)
     }
 
+    /** 複数のDLが別スレッドから進捗を書き込むため、読み直して書く操作は不可分にする。 */
     private fun updateState(episodeId: Long, state: DownloadState) {
-        mutableStates.value =
+        mutableStates.update { states ->
             if (state is DownloadState.Idle) {
-                mutableStates.value - episodeId
+                states - episodeId
             } else {
-                mutableStates.value + (episodeId to state)
+                states + (episodeId to state)
             }
+        }
     }
 
     /** 失敗表示を消す(再試行時に呼ぶ)。 */
