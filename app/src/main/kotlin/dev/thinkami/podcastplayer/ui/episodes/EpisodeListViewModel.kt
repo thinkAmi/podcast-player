@@ -195,7 +195,7 @@ class EpisodeListViewModel(
     }
 
     private fun startDownload(episodeId: Long) {
-        viewModelScope.launch { downloader.download(episodeId) }
+        downloader.start(episodeId)
     }
 
     // ---- 再生 ----

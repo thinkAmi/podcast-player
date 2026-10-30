@@ -6,6 +6,7 @@ import java.net.InetAddress
 import java.net.ServerSocket
 import java.net.Socket
 import java.util.concurrent.CopyOnWriteArrayList
+import java.util.concurrent.CountDownLatch
 import java.util.zip.GZIPOutputStream
 import kotlin.concurrent.thread
 
@@ -82,7 +83,15 @@ class FakeHttpServer : AutoCloseable {
         }
         val output = client.getOutputStream()
         output.write(head.toByteArray(Charsets.US_ASCII))
-        output.write(response.body)
+        val stall = response.stall
+        if (stall == null) {
+            output.write(response.body)
+        } else {
+            output.write(response.body, 0, stall.afterBytes)
+            output.flush()
+            stall.release.await()
+            output.write(response.body, stall.afterBytes, response.body.size - stall.afterBytes)
+        }
         output.flush()
     }
 
@@ -98,13 +107,24 @@ class RecordedRequest(val requestLine: String, val headers: Map<String, String>)
     fun header(name: String): String? = headers[name.lowercase()]
 }
 
-/** 返す応答。[contentEncoding] が null なら Content-Encoding ヘッダを付けない。 */
+/**
+ * 返す応答。[contentEncoding] が null なら Content-Encoding ヘッダを付けない。
+ *
+ * [stall] があると本文を途中まで送ったところで止まる。受信中の状態をテストから作るために使う。
+ */
 class FakeResponse(
     val status: Int,
     val reason: String,
     val body: ByteArray,
     val contentEncoding: String?,
+    val stall: Stall? = null,
 ) {
+
+    /** [afterBytes] まで送ったら [release] が開くまで残りを送らない。 */
+    class Stall(val afterBytes: Int) {
+        val release = CountDownLatch(1)
+    }
+
     companion object {
         private const val HTTP_OK = 200
         private const val REASON_OK = "OK"
@@ -113,6 +133,9 @@ class FakeResponse(
             FakeResponse(HTTP_OK, REASON_OK, body.toByteArray(Charsets.UTF_8), null)
 
         fun binary(body: ByteArray): FakeResponse = FakeResponse(HTTP_OK, REASON_OK, body, null)
+
+        fun stalledBinary(body: ByteArray, stall: Stall): FakeResponse =
+            FakeResponse(HTTP_OK, REASON_OK, body, null, stall)
 
         /** gzip圧縮して `Content-Encoding: gzip` を付けて返す。 */
         fun gzipped(body: String): FakeResponse =
